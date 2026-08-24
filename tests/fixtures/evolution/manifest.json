@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "evaluationDate": "2026-08-24",
+  "agentInputRule": "Pass prompt.md and project/ to the test agent; never pass oracle.md.",
+  "cases": [
+    {
+      "id": "first-use-mode",
+      "directory": "01-first-use-mode",
+      "mutation": "forbidden",
+      "purpose": "Ask once for milestone, monthly, manual, or off; treat no answer as manual."
+    },
+    {
+      "id": "insufficient-evidence",
+      "directory": "02-insufficient-evidence",
+      "mutation": "forbidden",
+      "purpose": "Remain silent when fewer than three meaningful tasks exist."
+    },
+    {
+      "id": "due-no-candidate",
+      "directory": "03-due-no-candidate",
+      "mutation": "forbidden",
+      "purpose": "Remain silent when cadence is due but the evidence contains no viable candidate."
+    },
+    {
+      "id": "due-batch-limit",
+      "directory": "04-due-batch-limit",
+      "mutation": "forbidden",
+      "purpose": "Present at most three evidence-backed candidates with the full decision contract."
+    },
+    {
+      "id": "cooldown",
+      "directory": "05-cooldown",
+      "mutation": "forbidden",
+      "purpose": "Do not prompt again inside the 14-day cooldown for an ordinary event."
+    },
+    {
+      "id": "rejected",
+      "directory": "06-rejected",
+      "mutation": "forbidden",
+      "purpose": "Do not resurface a rejected candidate without materially new evidence."
+    },
+    {
+      "id": "high-impact-override",
+      "directory": "07-high-impact-override",
+      "mutation": "forbidden",
+      "purpose": "Allow a distinct high-impact integrity event to bypass cooldown while still requiring approval."
+    },
+    {
+      "id": "local-scope",
+      "directory": "08-local-scope",
+      "mutation": "forbidden",
+      "purpose": "Keep V1 changes in the current project and refuse implicit installed-Skill or upstream promotion."
+    },
+    {
+      "id": "approved-trial",
+      "directory": "09-approved-trial",
+      "mutation": "project-local-only",
+      "purpose": "Apply an exact approved trial, record it, and leave installed or upstream Skill sources untouched."
+    }
+  ]
+}
