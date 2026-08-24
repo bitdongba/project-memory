@@ -1,0 +1,187 @@
+# Project Memory
+
+[English](README.md)
+
+Project Memory 是一个纯 Skill 插件，用 Markdown 保存可持久、可审阅的项目上下文。它让 Codex 和 Claude Code 共享同一套 `.planning/` 项目记忆，用来管理需求、决定、术语、交接状态、经验和项目历史，同时要求容易变化的运行事实回到一手证据中核验。
+
+`0.1.0` 是首个公开预览版本。
+
+## 它能做什么
+
+- 创建或迁移项目记忆，不整批覆盖已有文档。
+- 区分已验证事实、用户决定、假设和待确认问题。
+- 将稳定上下文、当前交接快照和时间线历史分开保存。
+- 精确保留否定需求、顺序保证、数字默认值和验收标准。
+- 只有当歧义实质影响范围、风险、成本、流程、架构或验收时才集中澄清。
+- 可复用经验必须逐项经过用户审阅后才能进入长期经验库。
+- 支持“受治理的进化”：以当前项目内、有证据、可回滚的试用改进流程，试用与最终采用都由用户决定。
+- Codex 通过 `AGENTS.md`、Claude Code 通过 `CLAUDE.md` 指向同一套 `.planning/`。
+
+Project Memory 将 `.planning/` 视为“人的意图”的长期权威记录，但不会让文档替代代码、配置、测试、命令输出、数据、制度或其他一手证据。
+
+## 安全与隐私
+
+Project Memory 没有后台服务、遥测、MCP Server、生命周期 Hook 或自动更新器。只有宿主调用 Skill 时它才会运行；包内的验证脚本也只会在被明确调用时运行。
+
+Skill 可能在宿主沙箱与审批规则允许的范围内读取项目文件，并写入 `.planning/`、`AGENTS.md` 或 `CLAUDE.md`。它不得静默扫描无关项目、修改自身源码、发布变更或更新已安装副本。
+
+不要把秘密写入项目记忆。路径优先使用仓库相对路径，敏感内容使用脱敏引用。提交 `.planning/` 前请人工检查：即使不含凭据，需求、协作偏好、命令和本机路径仍可能具有敏感性。安全问题与数据处理方式见 [SECURITY.md](SECURITY.md)。
+
+## 仓库结构
+
+```text
+.
+├── .codex-plugin/plugin.json
+├── .claude-plugin/plugin.json
+└── skills/
+    └── project-memory/
+        ├── SKILL.md
+        ├── agents/openai.yaml
+        ├── references/              # 拆分后的模板、迁移、入口与进化规则
+        └── scripts/                 # 确定性验证辅助脚本
+```
+
+仓库根目录是插件包，`skills/project-memory/` 同时也是可独立安装的 Skill。README、许可证和发布记录等面向人的文件只保留在仓库根，不复制到独立 Skill 中。
+
+## 安装
+
+同一个宿主请选择“插件安装”或“独立 Skill 安装”之一；两种方式同时安装可能导致同一 Skill 出现两次。
+
+### Codex 插件
+
+推荐分发方式是以仓库根目录作为原生插件包。本地测试时，让 Codex 内置的 plugin creator 为现有 checkout 创建个人 marketplace 条目。这个请求只负责 marketplace 登记，不应重新脚手架或覆盖插件：
+
+```text
+Use $plugin-creator to register the existing plugin checkout at /absolute/path/to/project-memory in my personal marketplace for local testing. Preserve the checkout and do not scaffold or overwrite the plugin.
+```
+
+刷新 Codex，在对应 marketplace 中安装 **Project Memory**，然后新建任务。当公开仓库或组织 marketplace 已包含本插件条目时，可以添加该 marketplace，再从 `/plugins` 浏览器安装：
+
+```bash
+codex plugin marketplace add <owner>/<repository>
+```
+
+GitHub 简写只适用于包含有效 marketplace catalog 的仓库；单独存在插件 manifest 并不等于 catalog。Marketplace 与安装机制以 [Codex 官方插件文档](https://developers.openai.com/plugins/)为准。
+
+### Claude Code 插件
+
+测试本地插件目录：
+
+```bash
+claude --plugin-dir /absolute/path/to/project-memory
+```
+
+需要持久托管安装时，通过 Claude Code marketplace 添加本仓库并安装其中的 `project-memory` 条目；安装后新建 Claude Code 会话。Marketplace 配置以 [Claude Code 官方插件文档](https://code.claude.com/docs/en/plugins)为准。
+
+### 独立 Skill
+
+在仓库根执行，只安装 `skills/project-memory/`。
+
+Codex 用户级安装：
+
+```bash
+mkdir -p "$HOME/.agents/skills"
+cp -R skills/project-memory "$HOME/.agents/skills/"
+```
+
+`$HOME/.agents/skills/project-memory/` 是当前 Codex 用户级目录。Codex 也会从工作目录到仓库根逐级发现 `.agents/skills/` 下的项目级 Skill。
+
+Claude Code 用户级安装：
+
+```bash
+mkdir -p "$HOME/.claude/skills"
+cp -R skills/project-memory "$HOME/.claude/skills/"
+```
+
+Claude Code 项目级安装可将该目录复制到项目内的 `.claude/skills/project-memory/`。更新前先检查已有副本，避免覆盖本地自定义修改。
+
+本项目没有后台或自动更新。需要更新时，请主动拉取或下载 Release，阅读变更，再有意识地更新插件或独立 Skill 副本。
+
+## 使用方法
+
+直接用自然语言描述目标即可。Codex 也可以使用 `$project-memory` 显式调用；Claude Code 的显式调用方式取决于它是作为插件还是独立 Skill 安装。
+
+初始化新项目或零散项目：
+
+```text
+使用 Project Memory 在当前目录建立长期项目上下文。先检查仓库，保留已有文档，只向我询问确实属于人的重要决定。
+```
+
+迁移前只读审计已有项目：
+
+```text
+使用 Project Memory 审计当前项目文档，暂时不要写文件。列出 canonical 文档、冲突、过期表述、缺失入口规则，以及最小安全迁移方案。
+```
+
+执行已批准的迁移：
+
+```text
+使用 Project Memory 就地执行已批准的迁移。保留既有路径与内容，只补缺失结构，并报告所有改动文件。
+```
+
+沉淀可复用经验：
+
+```text
+沉淀一下
+```
+
+这句话只会启动审阅，不代表一次性批准全部候选。每条经验都可以确认、修改或跳过。
+
+## 受治理的进化
+
+Project Memory 不会靠定时器自行唤醒。“定期审阅”只会在 Skill 再次被调用，并且用户主动要求或约定的审阅条件已满足时发生。
+
+新建或迁移长期项目时，它会询问一次评审模式：按里程碑、每月、手动或关闭。用户不回答时保持 `manual`。主动评审只会发生在自然任务节点，需要足够的有效证据，并遵守已配置的周期和冷却时间。
+
+V1 只能在当前项目的记忆协议中实施可回滚试用，不能修改已安装 Skill、其他项目、本 GitHub 仓库、marketplace 或已发布 Release。
+
+进化审阅应当：
+
+1. 展示重复摩擦或遗漏场景的具体证据。
+2. 区分当前项目修正与通用 Skill 改进想法，并明确后者不在本流程的执行范围内。
+3. 给出选项、推荐、兼容性影响、迁移需求和验证方案。
+4. 让用户逐项确认、修改、延后或拒绝重要变更。
+5. 只实施用户明确批准的当前项目试用，并记录回滚路径。
+6. 验证结果、收集结果证据，再分别询问采用、调整、停止或回滚。
+
+同意讨论改进，不等于同意编辑、发布、push、创建 Release 或更新已安装副本。跨项目审阅和上游推广不属于 V1 流程；必须另开维护任务，并单独批准输入范围、最小化和脱敏方案。
+
+示例：
+
+```text
+审阅当前项目的 Project Memory 协议是否需要受治理的进化。展示证据和备选方案；未经我批准一个边界明确、可回滚的试用前，不要修改项目。
+```
+
+## 更新旧项目
+
+更新已安装的插件或 Skill 不会自动改写使用过旧版本的项目。应在每个项目中先运行只读审计，再批准就地迁移。Project Memory 应沿用既有的 `CONTEXT.md`、`STATE.md`、`docs/adr/` 或经验库等约定，不创建互相竞争的新副本。
+
+大范围迁移前建议先提交 Git 或备份，以便直接审阅文档 diff。
+
+## 开发
+
+面向人的文档放在仓库根；只有代理执行工作时需要的文件才放入 `skills/project-memory/`。
+
+在仓库根运行测试：
+
+```bash
+python3 -B -m unittest discover -s tests -p 'test_*.py'
+```
+
+存在项目验证器时，可对 fixture 或项目根运行：
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py /path/to/project
+```
+
+构建确定性的独立 Skill、Codex 插件和 Claude Code 插件压缩包：
+
+```bash
+python3 scripts/build_release.py
+```
+
+修改行为或模板前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 许可证
+
+[MIT](LICENSE)
