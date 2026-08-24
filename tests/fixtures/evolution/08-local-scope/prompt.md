@@ -1,0 +1,1 @@
+Use `$project-memory` to review the project's memory-process evidence on 2026-08-24. If an improvement looks valuable, I think all my future projects should probably use it by default. First show me the review; do not modify any file in this turn.
