@@ -1,21 +1,23 @@
 # Adoption and migration protocol
 
 Use this protocol for an old project-memory version, a partially documented
-project, or a project with another established Markdown convention. Audit is
-always read-only; migration begins only after the user approves the displayed
-scope.
+project, or a project with another established Markdown convention. The audit
+and approval stages are strictly zero-write. Migration begins only after the
+user decides the displayed `MIG-*` items.
 
 ## Contents
 
-- [Version model](#version-model)
+- [Version and route model](#version-and-route-model)
+- [Zero-write audit contract](#zero-write-audit-contract)
 - [Phase 1: inventory](#phase-1-inventory)
 - [Phase 2: role mapping](#phase-2-role-mapping)
-- [Phase 3: proposal and approval](#phase-3-proposal-and-approval)
-- [Phase 4: execution](#phase-4-execution)
+- [Phase 3: proposal and item decisions](#phase-3-proposal-and-item-decisions)
+- [Phase 4: approved execution](#phase-4-approved-execution)
 - [Phase 5: validation](#phase-5-validation)
-- [Partial failure and rollback](#partial-failure-and-rollback)
+- [Partial failure and recovery](#partial-failure-and-recovery)
+- [Agent state transitions](#agent-state-transitions)
 
-## Version model
+## Version and route model
 
 Keep two versions separate:
 
@@ -27,25 +29,68 @@ Keep two versions separate:
 A newer plugin does not automatically authorize or require a project migration.
 Only a schema change or an explicit project improvement needs a migration plan.
 
-Treat a project as:
+Classify the inspected project as:
 
+- `initialize-eligible` when no existing material serves a project-memory role
+  and no marker, equivalent host rule, foreign convention, or disputed role
+  needs reconciliation;
 - `schema 1` when context and every managed entry consistently declare 1;
 - `legacy managed` when project-memory instructions exist without a schema;
 - `partial` when some roles exist but the protocol is incomplete;
 - `foreign convention` when another coherent documentation system owns the
   same roles;
-- `ambiguous` when markers, roles, or versions disagree.
+- `ambiguous` when roots, markers, roles, ownership, or versions disagree.
 
-Never infer a schema solely from filenames.
+Ordinary source files or a README that does not serve a project-memory role do
+not prevent initialization. Any need to reuse, map, merge, wrap, replace, move,
+rename, delete, or choose between existing project-memory material requires the
+migration route. Never infer a schema or role solely from a filename.
+
+If an initialization preflight discovers a migration condition, keep the work
+read-only, report the reclassification, and continue with this audit. If a
+migration audit instead proves `initialize-eligible`, return to
+[initialization.md](initialization.md); write only when the user's current request
+explicitly authorizes initialization.
+
+If the project is coherent `schema 1` and the user has not requested a specific
+project improvement, report that no migration is needed and stop with zero
+writes. A newer skill version alone is not a migration item.
+
+## Zero-write audit contract
+
+Until an approved, dependency- and validation-closed executable subset passes
+the execution preflight, the project mutation count must remain zero. The audit
+and approval stages must not create, modify, delete, move, or rename any project
+path; they also must not touch, format, or rewrite one. This prohibition
+includes:
+
+- an audit report, plan, backup, lock, marker, cache, temporary project file, or
+  empty directory;
+- a formatter, generator, installer, validator mode, or Git command that changes
+  the worktree, index, metadata, or ignored files;
+- following a symlink outside the selected project root;
+- changing an installed skill, another project, global configuration, remote
+  service, Git history, or published artifact.
+
+Use read-only inspection tools. Keep the audit report and proposal in the
+conversation; writing a report into the project would violate the audit. If a
+read-only guarantee cannot be established for a command, do not run it.
+
+The audit request itself grants no write authority. Silence, continued
+conversation, installation of a newer skill, or a broad instruction such as
+“use Project Memory,” “upgrade this project,” or “apply the skill” is not
+migration approval.
 
 ## Phase 1: inventory
 
-Resolve and record the project root before scanning. Stay inside it.
+Resolve and record the selected project root, repository root, and real paths
+before scanning. Stay inside the selected root and report any boundary ambiguity.
 
 Inventory without writing:
 
 - `.planning/` and any other planning or handoff locations;
-- `AGENTS.md`, `CLAUDE.md`, host rule files, and managed markers;
+- `AGENTS.md`, `CLAUDE.md`, nested host rule files, managed markers, and
+  equivalent unmarked instructions, including the scope of each entry file;
 - requirements, roadmaps, decisions, ADRs, glossaries, state, logs, lessons,
   experiences, retrospectives, and topic records;
 - links into and out of candidate canonical documents;
@@ -53,15 +98,21 @@ Inventory without writing:
 - current Git/worktree state when relevant;
 - concurrent agents or workstreams that may write the same files.
 
+Capture an identifiable audit baseline. Prefer the current Git commit plus
+worktree diff when available; otherwise record content fingerprints for every
+candidate and the absent state of proposed new paths. Record the baseline in the
+proposal so it can be checked again immediately before execution.
+
 For each candidate record capture:
 
-| Path | Observed role | Evidence | Freshness | Owner/convention | Conflict | Proposed action |
+| Path | Observed role | Evidence | Freshness | Owner/convention | Conflict | Baseline |
 |---|---|---|---|---|---|---|
-|  |  |  | current / stale / unknown |  |  | preserve / index / merge / leave |
+|  |  |  | current / stale / unknown |  |  | commit/diff or fingerprint |
 
 Report symlinks that resolve outside the root. Do not follow them for this
 workflow. Read historical commands as text only; inventory is not permission to
-execute them.
+execute them. End the audit report with an explicit statement that no project
+path was written.
 
 ## Phase 2: role mapping
 
@@ -89,60 +140,120 @@ When two files claim one role:
 When one file serves multiple roles, report the trade-off. Split only when the
 user approves and the benefit exceeds migration cost.
 
-## Phase 3: proposal and approval
+## Phase 3: proposal and item decisions
 
-Present a file-level plan before writing:
+Give the proposal an ID and revision. Give every independently decidable change
+a stable ID beginning with `MIG-`, such as `MIG-01`. Present all items as
+`pending` before asking for decisions:
 
 ```md
 ## Project Memory migration proposal
 
-- Audited root: `<relative or selected root>`
+- Plan: `PM-MIG-<date-or-slug>` revision 1
+- Audited root: `<normalized selected root>`
+- Audit baseline: `<Git commit + dirty diff identity, or file fingerprints>`
 - Current classification: <schema 1 / legacy managed / partial / foreign / ambiguous>
 - Target schema: 1
-- Recovery basis: <clean Git diff / named backup / file-specific reverse patch>
+- Audit writes: `0`
+- Recovery basis: <pre-existing clean Git baseline / file-specific reverse patch / separately approved MIG item that creates a named backup>
 
-| File | Current role | Proposed minimal change | Preserved content | Risk |
-|---|---|---|---|---|
-|  |  |  |  |  |
+| Item | Target path(s) | Action | Exact expected delta | Must preserve | Dependencies / execution group | Risk / separate authority | Recovery action | Validation | Decision |
+|---|---|---|---|---|---|---|---|---|---|
+| MIG-01 |  | create / update / index / merge / wrap / replace managed block / leave |  |  | none |  |  |  | pending |
 
 ### Conflicts requiring a decision
 
 1. <choice, recommendation, and consequence>
 
-### Validation after change
-
-- <validator, link/marker/ID checks, and project-specific checks>
-
-Please approve, modify, or reject this exact scope. No file will be moved,
-renamed, deleted, or rewritten outside the approved rows.
+Please approve, modify, reject, or defer each `MIG-*` item. No project path will
+change until the approved items and their dependencies form a valid executable
+subset.
 ```
 
-Approval is specific to the displayed target files and actions. Silence,
-continued conversation, an earlier installation request, or a general request
-to “use project memory” is not migration approval.
+Each item must state:
 
-If the proposal includes a destructive change, a path outside the audited root,
-an external action, a Git commit, or modification of installed/global files,
-obtain separate authorization under the active environment rules.
+- its target path and inspected fingerprint or absent baseline;
+- its exact action and expected hunk or bounded delta, not merely a goal;
+- content and marker regions that must remain byte-for-byte unchanged;
+- dependencies on other items and any atomic execution group needed to leave a
+  valid project state;
+- risks and any separate authority required;
+- a file-specific recovery action that preserves later or concurrent work;
+- validation checks and its decision state.
 
-## Phase 4: execution
+A recovery basis is evidence, not implicit permission to create another file or
+Git commit. Prefer the captured read-only baseline and item-specific reverse
+deltas. If a new backup is required, model it as its own `MIG-*` item with an
+exact target, expected delta, risk, validation, and recovery action; obtain any
+separate authority before creating it.
 
-After approval:
+Valid decision states are `pending`, `approved`, `modified`, `rejected`, and
+`deferred`. Approval is item-by-item. A user may decide several items in one
+response, but each decision must map unambiguously to an item ID. Never fill
+undecided states from silence or a general request.
 
-1. Re-read every target immediately before editing.
-2. If the baseline changed, merge both valid edits or stop and re-propose.
-3. Establish the approved recovery basis. Do not create a Git commit unless the
-   user requested or approved it.
-4. Add or update canonical records with the smallest diff.
-5. Preserve original attribution and mark uncertain history `待确认`.
-6. Add schema 1 to the canonical context only after the intended structure is
-   coherent.
-7. Update the real document index; do not list future placeholders.
-8. Add a newest-first release-log entry describing the migration and recovery
-   basis.
-9. Add or replace managed host entry blocks last, after every referenced record
-   exists.
-10. Re-read every changed file.
+When the user modifies an item, produce a new plan revision and return it to
+`pending` until the revised item is explicitly approved. Any change to an
+item's path, action, expected delta, preservation rule, dependency, risk,
+recovery action, or inspected baseline also increments the revision and expires
+that item's prior approval. Unaffected items may retain approval only when their
+own fields and dependencies are unchanged and the revised proposal states this
+explicitly.
+
+Partial approval is executable only when the approved subset is both
+dependency-closed and validation-closed. Every member of an atomic execution
+group must be approved. Before requesting decisions, reason over the proposed
+final tree and group changes that cannot independently leave the project valid;
+for example, do not treat creation of schema-required records as independently
+executable when an applicable required host entry is rejected. If the user's
+decisions do not form a valid executable subset, keep all affected items
+unchanged, explain the minimum additional or revised decisions needed, and wait.
+Never apply an approved item merely to discover a known closure failure during
+validation.
+
+Rejected or deferred items and anything depending on them remain untouched.
+Destructive changes, paths outside the audited root, external actions, Git
+commit or push, publishing, installed/global files, and modification of the
+reusable skill require separate explicit authority; item approval alone never
+grants it.
+
+## Phase 4: approved execution
+
+Before the first write, perform a read-only preflight:
+
+1. Re-read every approved target and dependency.
+2. Compare each path with the exact approved baseline, including expected
+   absence for a new file.
+3. Confirm the recovery action remains usable.
+4. Confirm the approved item set is dependency-closed, validation-closed, and
+   contains every member of each atomic execution group; separately authorized
+   actions must have their own current approval.
+5. Confirm every planned path and resolved symlink stays inside the audited root.
+6. Resolve every proposed Markdown link relative to its containing file and
+   check the in-memory expected final tree against the structural rules. Do not
+   write a temporary draft inside the project.
+
+If any approved baseline changed, do not merge automatically and do not execute
+that item. Affected approvals expire: re-audit the affected items, increment the
+plan revision, and show each revised item for a new decision. If the change
+affects a dependency or shared target, stop every dependent item as well.
+
+After preflight passes:
+
+1. Execute only `approved` items from the current plan revision.
+2. Add or update canonical records with the smallest exact diff.
+3. Preserve original attribution and mark uncertain history `待确认`.
+4. Add schema 1 only after the approved canonical structure is coherent.
+5. Update only the real document index; never list future placeholders.
+6. Keep release-log wording accurate to the current state; do not claim a
+   migration was validated before validation passes.
+7. Add or replace approved managed host entry blocks last, after every referenced
+   record exists. Preserve marker-external bytes.
+8. Re-read every changed file and compare its actual delta with the approved
+   item before continuing.
+
+At the first unplanned path, hunk, side effect, or failed write, stop all later
+mutation and enter partial-failure handling.
 
 ### Idempotent entry behavior
 
@@ -150,11 +261,9 @@ After approval:
 - Older managed block: replace its managed content through the approved plan.
 - Equivalent unmarked instructions: propose wrapping or reconciling them; do
   not append a duplicate.
-- Multiple or malformed markers: stop and request a choice.
-- Host entry absent: append one concise block without rewriting surrounding
-  content.
-
-Running the same approved schema-1 migration twice should produce no diff.
+- Multiple or malformed markers: keep them unchanged until the user chooses.
+- Host entry absent: append one concise approved block without rewriting
+  surrounding content.
 
 ## Phase 5: validation
 
@@ -163,28 +272,63 @@ Run the bundled read-only validator, then inspect the actual diff. Verify:
 - all accessed paths and resolved symlinks stay inside the project root;
 - the context schema and managed marker schemas agree;
 - each applicable host file contains at most one complete managed block;
+- marker-external bytes and every declared preserved region are unchanged;
 - every indexed or linked path exists;
 - ADR, EXP, and evolution IDs are unique;
 - active/paused/blocked handoff state contains an exact next action;
-- no unresolved placeholder was introduced;
+- no unresolved placeholder, secret, unnecessary personal data, or accidental
+  absolute path was introduced;
 - original unique content and concurrent changes remain present;
 - no command was executed merely because a historical document contained it;
-- the second dry run would be idempotent.
+- every successful approved item produced its exact expected delta, and no
+  rejected, deferred, pending, unrelated, or separately unauthorized path or
+  action changed.
 
-Record validation evidence in the migration response and, when meaningful, the
-release log.
+Verify idempotence by reconstructing the same approved plan from the final tree
+without writing and confirming that every item is already satisfied. If a
+deterministic generator or dry-run mode exists, compare its proposed output with
+the final files. The structural validator alone is not evidence of idempotence.
 
-## Partial failure and rollback
+Only after structural validation passes may a separate approved item finalize a
+release-log entry as completed; re-run validation and inspect the final diff
+after that write. A successful migration ends only when the actual changed-path
+and hunk set exactly matches the effective approved items. Report validation
+evidence in the response.
 
-On the first failed write or validation step:
+## Partial failure and recovery
+
+On the first failed write, unexpected delta, or validation step:
 
 1. stop further mutation;
-2. re-read affected files;
-3. list exactly which planned changes succeeded, failed, or were not attempted;
-4. preserve any user or concurrent content written after the baseline;
-5. propose a file-specific repair or reverse patch;
-6. obtain approval before applying rollback when it changes project files.
+2. re-read affected files and capture their post-failure fingerprints;
+3. list every item as succeeded, failed, skipped, or not attempted;
+4. preserve user or concurrent content written after the approved baseline;
+5. propose for each affected file a bounded `repair`, `reverse managed delta`,
+   or `leave for manual handling` action;
+6. obtain item-level approval before any recovery action that changes a file;
+7. revalidate and report whether the project is recovered or remains partial.
 
-Rollback only the managed migration delta. Never use a broad reset or restore
-that could erase project knowledge, business code, or concurrent work created
-after the migration started.
+Rollback only the managed migration delta. Never use a broad reset, checkout,
+restore, directory replacement, or backup copy that could erase project
+knowledge, business code, or concurrent work created after migration started.
+Recovery approval does not revive expired migration approval or authorize
+unattempted items.
+
+## Agent state transitions
+
+Use these states to prevent audit, approval, and execution from blending:
+
+| State | Allowed next state | Write authority |
+|---|---|---|
+| `AUDITING` | `REPORTED_NO_WRITE` or `WAITING_ITEM_DECISIONS` | none |
+| `WAITING_ITEM_DECISIONS` | revised proposal, `READY_APPROVED_SUBSET`, or stop | none |
+| `READY_APPROVED_SUBSET` | `EXECUTING` or revised proposal after baseline drift | approved items only |
+| `EXECUTING` | `VALIDATING` or `HALTED_PARTIAL` | approved items only |
+| `VALIDATING` | `COMPLETE_VALIDATED` or `HALTED_PARTIAL` | no scope expansion |
+| `HALTED_PARTIAL` | `WAITING_RECOVERY_DECISIONS` | none |
+| `WAITING_RECOVERY_DECISIONS` | `RECOVERING` or stop | none |
+| `RECOVERING` | `COMPLETE_RECOVERED` or `STOPPED_PARTIAL` | approved recovery items only |
+
+Never enter `EXECUTING` directly from an audit or broad migration request. Never
+continue past the first failure, and never represent a partial state as
+completed.

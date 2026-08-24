@@ -578,9 +578,7 @@ class ProjectMemoryValidator:
         target = raw_target.split("#", 1)[0].strip()
         if not target or Path(target).is_absolute():
             return
-        if not markdown_relative and target.startswith(
-            (".planning/", "docs/", "AGENTS.md", "CLAUDE.md")
-        ):
+        if not markdown_relative:
             candidate = self.root / target
         else:
             candidate = context_path.parent / target

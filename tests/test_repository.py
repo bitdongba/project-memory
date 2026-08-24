@@ -46,6 +46,24 @@ class RepositoryContractTests(unittest.TestCase):
         for link in links:
             self.assertTrue((SKILL / link).is_file(), link)
 
+    def test_new_and_existing_project_guides_are_discoverable(self):
+        english = REPO / "docs" / "workflows.md"
+        chinese = REPO / "docs" / "workflows.zh-CN.md"
+        self.assertTrue(english.is_file())
+        self.assertTrue(chinese.is_file())
+        self.assertIn("(docs/workflows.md)", (REPO / "README.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "(docs/workflows.zh-CN.md)",
+            (REPO / "README.zh-CN.md").read_text(encoding="utf-8"),
+        )
+
+    def test_skill_routes_directly_to_initialization_protocol(self):
+        text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        self.assertRegex(
+            text,
+            r"\[[^]]+\]\(references/initialization\.md\)",
+        )
+
     def test_openai_ui_metadata_contract(self):
         text = (SKILL / "agents" / "openai.yaml").read_text(encoding="utf-8")
         short = re.search(r'^\s*short_description:\s*"([^"]+)"\s*$', text, re.MULTILINE)
@@ -95,7 +113,11 @@ class RepositoryContractTests(unittest.TestCase):
 
     def test_repository_relative_markdown_links_resolve(self):
         link_re = re.compile(r"(?<!!)\[[^]\n]+\]\((<[^>\n]+>|[^\s)]+)")
-        paths = list(REPO.glob("*.md")) + list((SKILL / "references").glob("*.md"))
+        paths = (
+            list(REPO.glob("*.md"))
+            + list((REPO / "docs").rglob("*.md"))
+            + list((SKILL / "references").glob("*.md"))
+        )
         paths.append(SKILL / "SKILL.md")
         for path in paths:
             text = path.read_text(encoding="utf-8")
@@ -108,6 +130,32 @@ class RepositoryContractTests(unittest.TestCase):
                     continue
                 resolved = (path.parent / unquote(parsed.path)).resolve()
                 self.assertTrue(resolved.exists(), f"{path.relative_to(REPO)} -> {target}")
+
+    def test_migration_requires_zero_write_item_approval(self):
+        text = (SKILL / "references" / "migration.md").read_text(encoding="utf-8")
+        lowered = text.lower()
+        self.assertIn("zero-write", lowered)
+        self.assertRegex(text, r"MIG-\d{2}")
+        self.assertRegex(lowered, r"item[- ]by[- ]item")
+        self.assertIn("conversation", lowered)
+        self.assertRegex(
+            lowered,
+            r"must not\s+create,\s+modify,\s+delete,\s+move,\s+or\s+rename",
+        )
+        self.assertIn("validation-closed", lowered)
+        self.assertIn("atomic execution group", lowered)
+        self.assertIn("not implicit permission", lowered)
+        self.assertRegex(lowered, r"backup.+own `mig-\*` item")
+
+    def test_migration_approval_expires_when_baseline_changes(self):
+        text = (SKILL / "references" / "migration.md").read_text(encoding="utf-8")
+        lowered = text.lower()
+        self.assertIn("baseline", lowered)
+        self.assertRegex(
+            lowered,
+            r"(?:affected approval(?: items|s)?|approval(?: items|s)? for affected items)\s+expire",
+        )
+        self.assertRegex(lowered, r"re-(?:audit|read|propose)")
 
     def test_collaborative_evolution_safety_contract(self):
         text = (SKILL / "references" / "evolution.md").read_text(encoding="utf-8")
@@ -143,17 +191,35 @@ class ReleaseBuildTests(unittest.TestCase):
             with zipfile.ZipFile(standalone) as archive:
                 names = set(archive.namelist())
                 self.assertIn("project-memory/SKILL.md", names)
+                self.assertIn("project-memory/references/initialization.md", names)
+                self.assertIn("project-memory/references/migration.md", names)
                 self.assertNotIn("project-memory/README.md", names)
                 self.assertFalse(any(".codex-plugin" in name or ".claude-plugin" in name for name in names))
             with zipfile.ZipFile(codex) as archive:
                 names = set(archive.namelist())
                 self.assertIn("project-memory/.codex-plugin/plugin.json", names)
                 self.assertIn("project-memory/skills/project-memory/SKILL.md", names)
+                self.assertIn(
+                    "project-memory/skills/project-memory/references/initialization.md",
+                    names,
+                )
+                self.assertIn(
+                    "project-memory/skills/project-memory/references/migration.md",
+                    names,
+                )
                 self.assertFalse(any(".claude-plugin" in name for name in names))
             with zipfile.ZipFile(claude) as archive:
                 names = set(archive.namelist())
                 self.assertIn("project-memory/.claude-plugin/plugin.json", names)
                 self.assertIn("project-memory/skills/project-memory/SKILL.md", names)
+                self.assertIn(
+                    "project-memory/skills/project-memory/references/initialization.md",
+                    names,
+                )
+                self.assertIn(
+                    "project-memory/skills/project-memory/references/migration.md",
+                    names,
+                )
                 self.assertFalse(any(".codex-plugin" in name for name in names))
 
 

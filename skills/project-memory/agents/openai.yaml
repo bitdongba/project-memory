@@ -1,4 +1,4 @@
 interface:
   display_name: "Project Memory"
-  short_description: "审计、迁移并维护可交接、可追溯、可共同演进的 Markdown 项目记忆"
-  default_prompt: "Use $project-memory to audit or maintain this project memory and propose any due evidence-backed evolution review for my approval."
+  short_description: "安全初始化、审计迁移并维护可交接的 Markdown 项目记忆"
+  default_prompt: "Use $project-memory to classify this as a new-project initialization or an existing-project workflow; keep migration audits zero-write and wait for my decisions on numbered migration items."

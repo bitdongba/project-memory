@@ -30,15 +30,20 @@ Changes must continue to enforce these rules:
 6. Never silently scan unrelated projects, mutate the reusable skill, publish, push, release, or update installed copies.
 7. Keep secrets and unnecessary personal information out of project memory and test fixtures.
 8. Preserve exact negative requirements, ordering guarantees, numerical defaults, and acceptance criteria.
+9. Keep existing-project audits strictly zero-write; proposals belong in the conversation until the user approves named migration items.
+10. Bind migration approval to revisioned `MIG-*` items and inspected baselines; never expand partial approval or carry affected approval across baseline drift.
 
 ## Making a change
 
 1. Edit the canonical source rather than a generated artifact.
 2. Keep `SKILL.md` concise and move detailed scaffolds into a directly linked reference when needed.
 3. Update both plugin manifests when release metadata or packaged capabilities change.
-4. Update both READMEs when installation, safety, or user-facing behavior changes.
-5. Add or revise a fixture for behavior changes.
-6. Add an `Unreleased` changelog entry.
+4. Update both READMEs and the matching guide under `docs/` when installation,
+   safety, or user-facing workflow behavior changes.
+5. Keep the human workflow and agent-facing protocol aligned without copying the
+   entire enforceable reference into the README.
+6. Add or revise a fixture or evaluation case for behavior changes.
+7. Add an `Unreleased` changelog entry.
 
 Do not add a version field to skill frontmatter. Versions belong in Git tags, plugin manifests, release notes, and artifact names.
 
@@ -70,6 +75,9 @@ Before submitting a pull request, also confirm:
 - the packaged skill contains only required agent-facing files;
 - no `.DS_Store`, editor state, credentials, personal paths, or generated archives are included;
 - direct, indirect, negative, and boundary prompts have been considered for behavior changes.
+- new-project initialization and existing-project migration remain unambiguous;
+- migration tests cover zero-write audit, partial item approval, baseline drift,
+  first-failure stop, and separately approved recovery.
 
 Forward tests are evaluations, not demonstrations. Give the evaluator the raw skill and realistic task without leaking the expected answer or prior diagnosis.
 

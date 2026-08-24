@@ -58,13 +58,21 @@ Classify the request before writing:
 
 - **audit** — inspect health and report findings; make no changes.
 - **initialize** — create the minimum useful protocol for a new or undocumented
-  long-lived project.
+  long-lived project that has no existing material serving project-memory
+  roles.
 - **adopt-or-migrate** — map existing or older documents into the protocol.
 - **maintain** — checkpoint confirmed changes, state, decisions, or experience.
 - **evolve** — review evidence-backed improvements with the user.
 
 If the user asked only to inspect, review, diagnose, or compare, use `audit`.
 Do not treat that as permission to initialize or migrate.
+
+Use `initialize` only after a read-only preflight proves the project is eligible.
+Ordinary code or a README that does not serve a project-memory role does not by
+itself force migration. If any existing requirements, decisions, handoff,
+history, experience, canonical planning convention, older marker, equivalent
+host rule, or disputed role must be reused or reconciled, classify the request
+as `adopt-or-migrate` even when the user originally said “initialize.”
 
 ## Host compatibility
 
@@ -129,9 +137,23 @@ creating or substantially revising context, state, release log, or retrospective
 Read [references/knowledge-templates.md](references/knowledge-templates.md) only
 when a topic, term, decision, experience, or lesson needs a new record.
 
-## Initialize or maintain
+## Initialize a new project
 
-1. Establish the audited project root.
+Use the mandatory preflight and execution protocol in
+[references/initialization.md](references/initialization.md). The user's explicit
+initialization request authorizes the minimal, reversible project-local scaffold
+only when the audited root and new-project classification are clear. It does not
+authorize merging, replacing, moving, renaming, deleting, or choosing between
+existing project-memory material.
+
+If the preflight discovers material already serving a protocol role, do not
+create a competing `.planning/` scaffold or entry block. Reclassify the work as
+`adopt-or-migrate`, complete its zero-write audit, and wait for item-level user
+decisions.
+
+## Maintain an initialized project
+
+1. Establish the audited project root and read its canonical context first.
 2. Reuse existing canonical homes and language. Otherwise follow the user's
    language; for mixed projects prefer the language of existing project docs.
 3. Create only records with real content. Remove unused template headings.
@@ -148,16 +170,28 @@ For entry block markers and exact host text, read
 Use the protocol in [references/migration.md](references/migration.md). Its order
 is mandatory:
 
-1. inventory without writing;
+1. inventory with zero writes, including no audit artifact, backup, lock, cache,
+   directory, marker, formatting pass, or generated file;
 2. map current roles and protocol/schema versions;
 3. report duplicates, conflicts, unsafe paths, and unknowns;
-4. show a file-level plan and expected diff;
-5. obtain explicit user approval for that scope;
-6. make the smallest approved changes;
+4. show a revisioned file-level plan whose items have stable `MIG-*` IDs,
+   baselines, exact expected deltas, preservation rules, dependencies, risks,
+   validation, and recovery actions;
+5. obtain an explicit `approve`, `modify`, `reject`, or `defer` decision for each
+   item; a user may decide several named items in one response;
+6. execute only approved items whose dependency and validation closure is
+   complete, whose atomic execution groups are fully approved, and whose
+   baselines still match;
 7. write host entry blocks last;
-8. validate links, IDs, state, markers, boundaries, and the final diff.
+8. validate links, IDs, state, markers, boundaries, the actual-versus-approved
+   diff, and idempotence.
 
 Never infer approval from silence or from a general request to “use the skill.”
+If an item's path, action, expected delta, preservation rule, dependency, risk,
+recovery action, or inspected baseline changes, its approval expires. Re-audit
+and show a revised item before writing it. Approval of migration items never
+implicitly authorizes deletion, outside-root work, external action, Git commit
+or push, publishing, global installation, or modification of the reusable skill.
 If a write partly fails, stop and report exactly what changed. Do not perform a
 blanket rollback that could erase user work; offer a managed, file-specific
 rollback for approval.
@@ -217,8 +251,10 @@ expand its scope.
 
 - Assign one coordinator to merge shared memory files and host entry blocks.
 - Immediately before every shared write, re-read the target and compare it with
-  the inspected baseline. If it changed, merge both sets of valid edits or stop
-  and coordinate; never overwrite blindly.
+  the inspected baseline. During an approved migration, any material baseline
+  change expires the affected item approval: stop and re-propose it. During
+  maintenance, merge both sets of valid authorized edits or stop and coordinate;
+  never overwrite blindly.
 - Write topic-local records in parallel when they have distinct ownership.
 - Give parallel workstreams separate state records under an existing convention,
   or establish one with the user; reserve a single global `state.md` for the

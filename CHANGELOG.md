@@ -6,7 +6,26 @@ The project uses semantic versioning. Skill frontmatter intentionally contains o
 
 ## Unreleased
 
-- No changes yet.
+### Added
+
+- Bilingual human workflows for initializing genuinely new projects and
+  migrating existing or partially documented projects.
+- A dedicated agent initialization protocol with a read-only eligibility
+  preflight and automatic reclassification to migration when existing material
+  already serves project-memory roles.
+
+### Changed
+
+- Existing-project migration now requires a strict zero-write audit, revisioned
+  `MIG-*` items, item-by-item user decisions, dependency closure, and baseline
+  revalidation before execution.
+- Validation and recovery now compare actual changes with the approved item set,
+  stop at the first unexpected delta or failure, and require separate approval
+  for file-changing recovery actions.
+- Partial migration approval must be dependency- and validation-closed; atomic
+  execution groups cannot be split into an invalid intermediate project.
+- The validator now interprets inline-code document-index paths relative to the
+  project root while preserving standard Markdown link semantics.
 
 ## 0.1.0 - 2026-08-24
 

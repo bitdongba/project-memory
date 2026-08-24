@@ -2,7 +2,8 @@
 
 Use these scaffolds only when the corresponding record has real content. Adapt
 the language and headings to the project, remove irrelevant sections, and keep
-all repository paths relative to the project root.
+inline-code repository paths relative to the project root. Standard Markdown
+links remain relative to the file that contains them.
 
 ## Contents
 

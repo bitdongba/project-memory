@@ -33,6 +33,7 @@ Do not store secrets in project memory. Prefer repository-relative paths and red
 .
 ├── .codex-plugin/plugin.json
 ├── .claude-plugin/plugin.json
+├── docs/                            # detailed human workflow guides
 └── skills/
     └── project-memory/
         ├── SKILL.md
@@ -41,7 +42,9 @@ Do not store secrets in project memory. Prefer repository-relative paths and red
         └── scripts/                 # deterministic validation helpers
 ```
 
-The repository root is the plugin package. `skills/project-memory/` is also the standalone skill. User documentation and release files remain at the repository root and are not copied into the standalone skill.
+The repository root is the plugin package. `skills/project-memory/` is also the
+standalone skill. Human documentation remains at the repository root or under
+`docs/` and is not copied into the standalone skill.
 
 ## Installation
 
@@ -101,10 +104,22 @@ There are no background or automatic updates. Pull or download a release, review
 
 Ask for the outcome in ordinary language. Codex can also invoke the skill as `$project-memory`; invocation syntax in Claude Code depends on whether it was installed as a plugin or standalone skill.
 
-Initialize a new or loosely organized project:
+For the complete human workflow—including the split between genuine new-project initialization and zero-write, item-approved migration—see [New and existing project workflows](docs/workflows.md).
+
+Choose the route before allowing writes:
+
+- A genuinely new long-lived project: read-only preflight, then minimal
+  initialization under the explicit request.
+- Any project with existing requirements, decisions, handoff, experience,
+  equivalent project-memory host rules, or an older/foreign memory convention:
+  zero-write audit, numbered proposal, item-by-item approval, then approved
+  execution.
+- A one-off task that needs no durable context: do not initialize Project Memory.
+
+Initialize a genuinely new long-lived project:
 
 ```text
-Use Project Memory to initialize durable project context here. Inspect the repository first, preserve existing documentation, and ask only the material decisions that belong to me.
+Use Project Memory to initialize durable project context here. Start with a read-only preflight. If existing material already serves project-memory roles, switch to a migration audit and stop before writing; otherwise create only the minimum populated structure.
 ```
 
 Audit an existing project before migration:
@@ -116,7 +131,7 @@ Use Project Memory to audit this project's current documentation without writing
 Apply an approved migration:
 
 ```text
-Use Project Memory to apply the approved migration in place. Preserve established paths and content, add only missing structure, and report every changed file.
+Apply MIG-01 and MIG-03 from Project Memory plan PM-MIG-example revision 1 exactly as approved. Do not apply other items or change other files. Re-check the approved baseline first, then report the actual diff and validation evidence.
 ```
 
 Capture reusable experience:
@@ -154,13 +169,17 @@ Review this project's Project Memory protocol for governed evolution. Present ev
 
 ## Updating an existing project
 
-Updating the installed plugin or skill does not automatically rewrite projects that used an older version. In each project, run a read-only audit first and then approve an in-place migration. Project Memory should preserve existing conventions such as `CONTEXT.md`, `STATE.md`, `docs/adr/`, or an existing experience library instead of creating competing copies.
+Updating the installed plugin or skill does not automatically rewrite projects that used an older version. In each project, run a zero-write audit first, review the numbered `MIG-*` proposal, and approve, modify, reject, or defer items individually. Project Memory should preserve existing conventions such as `CONTEXT.md`, `STATE.md`, `docs/adr/`, or an existing experience library instead of creating competing copies.
 
-Commit or back up the project before a broad migration so the documentation diff is easy to review.
+If you want a protective Git commit or backup before a broad migration, create
+it yourself or authorize it separately. Approval of `MIG-*` items does not
+implicitly authorize a commit or a new backup path.
 
 ## Development
 
-Keep human-facing documentation at the repository root. Keep only files needed by the agent under `skills/project-memory/`.
+Keep short repository-facing documents at the root and detailed human guides
+under `docs/`. Keep only files needed by the agent under
+`skills/project-memory/`.
 
 Run the repository tests from the root:
 

@@ -198,6 +198,42 @@ class ProjectMemoryValidatorTests(unittest.TestCase):
 
             self.assertIn("LINK_OUTSIDE_ROOT", issue_codes(project))
 
+    def test_document_index_inline_code_bare_filenames_are_project_root_relative(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            (project / "README.md").write_text("# README\n", encoding="utf-8")
+            (project / "PROJECT.md").write_text("# Project\n", encoding="utf-8")
+            context = project / ".planning/context.md"
+            context.write_text(
+                context.read_text(encoding="utf-8").replace(
+                    "| `docs/reference.md` | 一手参考资料 |",
+                    "| `docs/reference.md` | 一手参考资料 |\n"
+                    "| `README.md` | 项目说明 |\n"
+                    "| `PROJECT.md` | 项目定义 |",
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], validator.validate_project(project))
+
+    def test_document_index_markdown_link_remains_relative_to_context_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            (project / "PROJECT.md").write_text("# Project\n", encoding="utf-8")
+            context = project / ".planning/context.md"
+            context.write_text(
+                context.read_text(encoding="utf-8").replace(
+                    "| `docs/reference.md` | 一手参考资料 |",
+                    "| `docs/reference.md` | 一手参考资料 |\n"
+                    "| [Project](../PROJECT.md) | 项目定义 |",
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual([], validator.validate_project(project))
+
     def test_active_state_needs_a_meaningful_exact_next_step(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "project"
