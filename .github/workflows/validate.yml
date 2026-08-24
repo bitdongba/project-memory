@@ -1,0 +1,57 @@
+name: Validate and package
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install YAML validator
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+
+      - name: Parse Skill UI metadata
+        run: >-
+          python -c "import pathlib,yaml;
+          p=pathlib.Path('skills/project-memory/agents/openai.yaml');
+          d=yaml.safe_load(p.read_text(encoding='utf-8'));
+          assert d['interface']['default_prompt'].find('$project-memory') >= 0"
+
+      - name: Compile Python sources
+        run: python -m compileall -q scripts skills/project-memory/scripts tests
+
+      - name: Run repository and behavior tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build deterministic release archives
+        run: python scripts/build_release.py
+
+      - name: Test release archives
+        run: |
+          for archive in dist/*.zip; do
+            unzip -t "$archive"
+          done
+
+      - name: Upload release candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-memory-release-candidates
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
+          if-no-files-found: error
