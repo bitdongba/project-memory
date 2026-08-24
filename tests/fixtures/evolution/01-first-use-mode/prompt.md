@@ -1,0 +1,1 @@
+Use `$project-memory` to inspect this long-lived project on 2026-08-24. The core memory files already exist. Tell me only about project-memory collaboration preferences that genuinely need my decision. Do not modify files in this run.
