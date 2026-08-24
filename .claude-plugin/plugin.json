@@ -1,6 +1,6 @@
 {
   "name": "project-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Maintain durable Markdown project memory with evidence-aware requirements, decisions, handoffs, migrations, and user-approved workflow trials.",
   "author": {
     "name": "Project Memory contributors"

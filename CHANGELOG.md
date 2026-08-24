@@ -6,6 +6,10 @@ The project uses semantic versioning. Skill frontmatter intentionally contains o
 
 ## Unreleased
 
+- No changes yet.
+
+## 0.1.1 - 2026-08-24
+
 ### Added
 
 - Bilingual human workflows for initializing genuinely new projects and
@@ -26,6 +30,7 @@ The project uses semantic versioning. Skill frontmatter intentionally contains o
   execution groups cannot be split into an invalid intermediate project.
 - The validator now interprets inline-code document-index paths relative to the
   project root while preserving standard Markdown link semantics.
+- Standalone Skill release archives now include the MIT license.
 
 ## 0.1.0 - 2026-08-24
 

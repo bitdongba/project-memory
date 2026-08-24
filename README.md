@@ -4,7 +4,9 @@
 
 Project Memory is a skills-only plugin for maintaining durable, reviewable project context in Markdown. It gives Codex and Claude Code one shared `.planning/` memory for requirements, decisions, terminology, handoffs, lessons, and project history while keeping current operational facts tied to primary evidence.
 
-Version `0.1.0` is an initial public preview.
+Version `0.1.1` adds guarded new-project initialization and zero-write,
+item-approved migration workflows. Version `0.1.0` was the initial public
+preview.
 
 ## What it does
 

@@ -191,6 +191,7 @@ class ReleaseBuildTests(unittest.TestCase):
             with zipfile.ZipFile(standalone) as archive:
                 names = set(archive.namelist())
                 self.assertIn("project-memory/SKILL.md", names)
+                self.assertIn("project-memory/LICENSE", names)
                 self.assertIn("project-memory/references/initialization.md", names)
                 self.assertIn("project-memory/references/migration.md", names)
                 self.assertNotIn("project-memory/README.md", names)

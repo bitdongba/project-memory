@@ -126,6 +126,7 @@ def build(repo: Path, dist: Path) -> list[Path]:
         (path, PurePosixPath("project-memory") / PurePosixPath(path.relative_to(skill_root).as_posix()))
         for path in skill_files
     ]
+    standalone.append((license_file, PurePosixPath("project-memory/LICENSE")))
     zip_entries(artifacts[0], standalone)
 
     shared = rooted_entries(repo, "project-memory", skill_files)
