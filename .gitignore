@@ -1,0 +1,43 @@
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+
+# Node and generic build output
+node_modules/
+build/
+dist/
+coverage/
+
+# Generated packages and temporary evaluation output
+*.zip
+SHA256SUMS
+*.sha256
+tmp/
+work/
+artifacts/
+
+# Logs and local secrets
+*.log
+.env
+.env.*
+!.env.example
+
+# Host-local settings
+.claude/settings.local.json
