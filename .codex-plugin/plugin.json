@@ -1,0 +1,35 @@
+{
+  "name": "project-memory",
+  "version": "0.1.0",
+  "description": "Maintain durable Markdown project memory with evidence-aware requirements, decisions, handoffs, migrations, and user-approved workflow trials.",
+  "author": {
+    "name": "Project Memory contributors"
+  },
+  "homepage": "https://github.com/bitdongba/project-memory",
+  "repository": "https://github.com/bitdongba/project-memory",
+  "license": "MIT",
+  "keywords": [
+    "project-management",
+    "documentation",
+    "knowledge-management",
+    "handoff",
+    "agent-skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Project Memory",
+    "shortDescription": "Durable, reviewable Markdown memory for long-running projects.",
+    "longDescription": "Preserve requirements, decisions, evidence boundaries, handoffs, and reviewed experience across Codex and Claude Code sessions.",
+    "developerName": "Project Memory contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Initialize durable project memory here without overwriting existing documentation.",
+      "Audit this project's documentation and propose the smallest safe migration.",
+      "Review reusable lessons and propose only user-approved memory updates."
+    ]
+  }
+}
