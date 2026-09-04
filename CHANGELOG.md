@@ -8,6 +8,42 @@ The project uses semantic versioning. Skill frontmatter intentionally contains o
 
 - No changes yet.
 
+## 0.2.0 - 2026-09-04
+
+### Added
+
+- An optional ruleset-1 contract, versioned independently from schema 1, for a
+  stable Context boot contract, typed canonical-role index, and deterministic
+  write preflight.
+- A read-only router that resolves explicit statement kinds only through the
+  audited role index and never authorizes a write.
+- Explicit health validation with stable text/JSON output, four severity
+  levels, approved-baseline comparison, and a no-regression ratchet.
+- Anonymous mutation fixtures for legacy compatibility, healthy ruleset
+  structure, Context drift, history ordering, numeric-heading regression, and
+  missing state completion signals.
+
+### Changed
+
+- Context templates no longer invite current focus, next milestones, blockers,
+  releases, deployments, PIDs, build hashes, or other transient state.
+- Ruleset opt-in is an atomic, item-approved migration of the context
+  declaration, typed index, conflicting maintenance instructions, and every
+  applicable host entry; legacy schema-1 projects remain valid.
+- Ruleset health adds deterministic release-order and state-completion errors,
+  plus review or warning diagnostics for heuristic drift signals.
+- Ruleset parsing now keeps both core roles fixed to `.planning/context.md`,
+  validates every indexed canonical Markdown target, follows CommonMark heading
+  and fence indentation, and binds numeric finding signatures to section scope.
+
+### Security and governance
+
+- The validator and router are read-only, never auto-fix content, and never
+  create, accept, refresh, or weaken a health baseline.
+- Ruleset opt-in defaults to advisory behavior. Hooks, CI workflows, required
+  checks, commits, publishing, and installed-copy updates remain separate,
+  explicitly approved actions.
+
 ## 0.1.1 - 2026-08-24
 
 ### Added

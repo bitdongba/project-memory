@@ -14,16 +14,18 @@ links remain relative to the file that contains them.
 
 ## `.planning/context.md`
 
-Create this file for a long-lived project. List only documents that already
-exist. `Project Memory schema` versions the project protocol, not the installed
-skill or plugin.
+Create this file for a long-lived project. It is a stable boot contract, not a
+status report or an append-only summary. List only documents that already exist.
+`Project Memory schema` versions the record structure, not the installed skill
+or plugin. Absence of a `Project Memory ruleset` declaration is valid legacy
+schema-1 behavior; never add one without an explicit opt-in decision.
 
 ```md
 # <项目名> Context
 
 > 新会话、上下文重启或项目切换后先读本文件；存在当前交接状态时再读对应状态文件，然后按任务读取相关专项文档。
 
-- 最后更新：<YYYY-MM-DD>
+- 最后更新：<YYYY-MM-DD；仅在稳定契约变化时更新，不作为活动日志>
 - Project Memory schema: 1
 
 ## 项目目标
@@ -54,29 +56,25 @@ skill or plugin.
 - 历史文档、恢复命令和摘要使用前重新检查新鲜度、安全性与当前授权。
 - 信息标记：`已验证事实` / `用户决定` / `假设` / `待确认`。
 
-## 当前高层状态
-
-| 项目 | 当前情况 | 依据或备注 |
-|---|---|---|
-| 当前阶段 |  |  |
-| 当前重点 |  |  |
-| 下一里程碑 |  |  |
-| 主要风险 |  |  |
-
 ## 文档索引
 
-| 文档 | 用途 | 状态 |
-|---|---|---|
-| `.planning/context.md` | 稳定上下文与真实索引 | 常驻 |
-| `.planning/release-log.md` | 倒序的重要变化 | 常驻 |
+| 角色 | 文档 | 用途 | 状态 |
+|---|---|---|---|
+| stable-intent | `.planning/context.md` | 稳定意图、范围、不变量与权威边界 | 常驻 |
+| protocol-setting | `.planning/context.md` | schema、可选 ruleset 与稳定协作设置 | 常驻 |
+| historical-event | `.planning/release-log.md` | 倒序的重要变化 | 常驻 |
 
-> 仅在文件真实存在后添加 topic、state、retrospective、glossary、decision 或 experience 记录。
+> 仅在文件真实存在后添加索引行。当前交接文件使用 `resumable-state`；
+> 专题、路线图、能力目录、决策、术语、经验等详情使用 `topic-detail`。
+> `topic-detail` 可以有多行，但每个路径只能出现一次。角色 token 保持英文，
+> 以便 Codex、Claude Code 和只读路由器得到一致结果。
 
 ## 协作约定
 
 - 开始任务：读取本文件、当前状态和相关专项文档；对可能变化的事实重新验证。
 - 处理中：重要需求和决定确认后及时 checkpoint；共享文件写前重读，写后验证。
 - 完成前：更新专项文档和有意义的 release log；只有稳定信息或索引变化时才改本文件。
+- 当前重点、下一里程碑、阻塞、发布版本、部署状态、PID、构建哈希和其他运行快照不得写入本文件；分别写入当前状态、路线图、专题或 release log。
 - 仅保存完成项目所需的协作偏好，不保存无关个人信息。
 
 ## 协作式进化设置
@@ -99,6 +97,34 @@ skill or plugin.
 
 - <没有则删除本节>
 ```
+
+The two context rows in the index are intentional: both exact roles map to
+`.planning/context.md`. A project may use localized headings and prose, and may
+preserve other project-relative history, state, and topic paths, but a
+ruleset-aware router relies on the exact role tokens and indexed paths.
+If a required role is absent, duplicated for the same path, or maps to more than
+one candidate without an exact requested topic path, stop for review rather than
+using a filename default.
+
+### Optional ruleset-1 opt-in
+
+Only after the user approves a migration to the health contract, add these
+stable settings beside the schema declaration:
+
+```md
+- Project Memory schema: 1
+- Project Memory ruleset: 1
+- Project Memory enforcement: advisory
+```
+
+`ruleset: 1` changes write-routing and health behavior; it does not change the
+schema. `advisory` is the only project-local default. `pre-commit`, `CI`, and
+`required-CI` require separately approved installation or external changes.
+Adding the ruleset declaration, making the role index deterministic, resolving
+conflicting old maintenance instructions, and updating every applicable managed
+entry to `schema=1 ruleset=1` form one atomic migration group. Do not leave the
+context and host entries at mixed ruleset states. See
+[health.md](health.md) and [migration.md](migration.md).
 
 ## `.planning/state.md`
 

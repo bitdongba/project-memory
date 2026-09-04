@@ -11,6 +11,7 @@ This guide is for project owners and everyday users. It explains when to initial
 - [Path A: initialize a new project](#path-a-initialize-a-new-project)
 - [Path B: migrate an existing project](#path-b-migrate-an-existing-project)
 - [Upgrade a project created by an older version](#upgrade-a-project-created-by-an-older-version)
+- [Optional ruleset 1](#optional-ruleset-1)
 - [Codex and Claude Code](#codex-and-claude-code)
 - [Definition of done](#definition-of-done)
 
@@ -72,9 +73,14 @@ If equivalent material already exists, the agent must stop treating the project 
 
 The default initialization creates only:
 
-- `.planning/context.md` for stable intent, constraints, high-level state, the real index, and schema;
+- `.planning/context.md` for stable intent, constraints, authority boundaries,
+  protocol settings, the real index, and schema;
 - `.planning/release-log.md` for meaningful newest-first history;
 - one concise managed entry block for each applicable host, written last.
+
+Current work, focus, milestones, blockers, release or deployment state, PIDs,
+and build hashes belong in state, a roadmap, one indexed topic, or the release
+log—not in the stable context contract.
 
 Create `state.md`, retrospectives, glossary, decision, experience, template, and topic records only after real content needs them. Do not generate empty shells.
 
@@ -109,7 +115,8 @@ The audit report should contain:
 
 - root, date, and an identifiable Git or file baseline;
 - a proposal ID and revision so approval cannot drift to a later plan;
-- classification as `schema 1`, `legacy managed`, `partial`, `foreign convention`, or `ambiguous`;
+- classification as `schema 1 legacy`, `schema 1 / ruleset 1`, `legacy managed`,
+  `partial`, `foreign convention`, or `ambiguous`;
 - each path's observed role, evidence, freshness, owner or convention, and conflicts;
 - out-of-root symlinks, concurrent writers, and unresolved authority;
 - numbered items such as `MIG-01` and `MIG-02`;
@@ -159,24 +166,60 @@ Migration is not permission to format, rename, or clean unrelated files.
 The agent runs the read-only validator and inspects the actual diff. It verifies at least:
 
 - every path and resolved symlink remains inside the project root;
-- context and managed-marker schemas agree;
+- context and managed-marker schema and ruleset declarations agree;
 - indexes and Markdown links resolve;
-- IDs are unique and active handoff state has an exact next action;
+- IDs are unique, and ruleset-1 active handoff state has an exact next action
+  and completion signal;
 - unique original content and concurrent changes remain present;
 - a second dry run of the same approved plan would produce no diff;
 - actual changes do not exceed approved items.
 
 At the first failed write or validation step, the agent stops, lists succeeded, failed, and unattempted items, and proposes a file-specific repair or reverse patch. A rollback that changes files also requires approval. Never use a broad reset or restore that could erase work created after migration began.
 
-Only after structural validation passes may an approved release-log item be
-finalized as completed; the agent then validates and inspects the final diff
-again.
+All projects run structural validation. A ruleset-1 project also runs the
+read-only health check; when an approved baseline exists, it applies the
+no-regression ratchet. Only after the applicable validation passes may an
+approved release-log item be finalized as completed; the agent then validates
+and inspects the final diff again.
 
 ## Upgrade a project created by an older version
 
-Update the plugin or standalone skill first, then run the existing-project workflow separately in every project. A version update does not imply that the project schema must change. Only a schema change or an explicitly chosen project improvement needs migration.
+Update the plugin or standalone skill first, then run the existing-project workflow separately in every project. A version update does not imply that the project schema or ruleset must change. Only a schema change, ruleset opt-in or change, or an explicitly chosen project improvement needs migration.
 
-Do not copy a new `.planning/` directory over the old one. Existing `CONTEXT.md`, `STATE.md`, `docs/adr/`, changelog, or experience libraries may remain canonical and be indexed by the new protocol.
+Do not copy a new `.planning/` directory over the old one. Existing `STATE.md`,
+`docs/adr/`, changelog, experience libraries, and detailed `CONTEXT.md` content
+may remain canonical and be indexed by the new protocol. Under ruleset 1, the
+stable boot contract and protocol settings themselves remain in the required
+`.planning/context.md`; preserve a separate legacy `CONTEXT.md` as an indexed
+topic or linked source instead of assigning it either core role.
+
+## Optional ruleset 1
+
+Ruleset 1 is an optional behavior and health contract layered on schema 1. A
+legacy schema-1 project remains valid, and `NOTICE RULESET_NOT_ENABLED` is only
+information. It does not authorize migration.
+
+Opt-in requires one atomic, item-approved migration group covering:
+
+1. the `Project Memory ruleset: 1` context declaration and actual enforcement
+   level;
+2. one deterministic role index using the exact machine tokens described by
+   the Skill, with both core roles fixed to `.planning/context.md` and every
+   indexed canonical Markdown target included in applicable validation;
+3. explicit reconciliation of every active maintenance instruction that sends
+   transient state or dated history into stable context;
+4. every applicable `AGENTS.md` and `CLAUDE.md` marker.
+
+If any member is unapproved or its baseline changes, write none of the group.
+Do not leave mixed ruleset states. The default level is `advisory`; a baseline,
+pre-commit hook, CI workflow, or required branch check is a separate `MIG-*`
+item. The validator and router never save a baseline, edit content, authorize a
+write, or install external enforcement. See
+[Health and ruleset 1](../skills/project-memory/references/health.md).
+
+When a baseline is used, its expected SHA-256 must be pinned or protected by
+the caller independently of the change being checked. A digest edited beside
+the baseline in the same unprotected change is not a trust anchor.
 
 ## Codex and Claude Code
 
@@ -195,5 +238,10 @@ The workflow is complete only when:
 - an existing-project migration has a demonstrably zero-write audit stage;
 - every actual change maps to explicit initialization authority or an approved migration item;
 - existing content, canonical conventions, and concurrent changes remain intact;
-- the validator and project-specific checks pass, or failures are reported accurately;
+- for a read-only audit, findings are reported accurately and no project write
+  occurred;
+- for initialization, maintenance, or migration that wrote files, structural
+  validation and project-specific checks pass, together with ruleset-1 health
+  and any approved baseline ratchet when applicable; otherwise report the work
+  as partial or blocked, not complete;
 - the final report names the root, changed files, preserved mappings, validation evidence, recovery path, and highest-priority unresolved decision.

@@ -11,6 +11,7 @@
 - [路径 A：创建新项目记忆](#路径-a创建新项目记忆)
 - [路径 B：迁移存量项目](#路径-b迁移存量项目)
 - [更新旧版 Project Memory 项目](#更新旧版-project-memory-项目)
+- [可选的 ruleset 1](#可选的-ruleset-1)
 - [Codex 与 Claude Code](#codex-与-claude-code)
 - [完成标准](#完成标准)
 
@@ -72,9 +73,11 @@ Agent 必须：
 
 默认只创建：
 
-- `.planning/context.md`：稳定目标、约束、高层状态、真实文档索引和 schema；
+- `.planning/context.md`：稳定意图、约束、权威边界、协议设置、真实文档索引和 schema；
 - `.planning/release-log.md`：倒序记录有意义的变化；
 - 适用宿主的一个简短受管入口块，且必须最后写入。
+
+当前任务、重点、里程碑、阻塞、发布或部署状态、PID 与构建哈希应进入 state、路线图、一个被索引的专题或 release log，而不是稳定 Context 契约。
 
 `state.md`、回顾、术语、决策、经验、模板和专题文件都应按实际需要延迟创建，不生成空壳文件。
 
@@ -109,7 +112,7 @@ Agent 必须：
 
 - 审计根目录、时间和可识别的 Git/文件基线；
 - 方案 ID 与 revision，避免一次批准被套用到后来改变的方案；
-- 当前分类：`schema 1`、`legacy managed`、`partial`、`foreign convention` 或 `ambiguous`；
+- 当前分类：`schema 1 legacy`、`schema 1 / ruleset 1`、`legacy managed`、`partial`、`foreign convention` 或 `ambiguous`；
 - 路径、实际角色、证据、新鲜度、现有所有者/惯例和冲突；
 - 越界符号链接、并发写入和无法确认的权威来源；
 - 编号迁移项，例如 `MIG-01`、`MIG-02`；
@@ -156,22 +159,37 @@ Agent 只能执行批准表格中的文件和动作，并应：
 Agent 应运行只读验证器并检查实际 diff，至少确认：
 
 - 所有路径和符号链接都留在项目根目录内；
-- context schema 与入口 marker schema 一致；
+- Context 与入口 marker 的 schema、ruleset 声明一致；
 - 索引和 Markdown 链接有效；
-- ID 唯一，活跃交接状态包含精确下一步；
+- ID 唯一；ruleset 1 下的活跃交接状态包含精确下一步和完成信号；
 - 原有独特内容和并发改动仍存在；
 - 第二次按同一方案试运行不会再产生 diff；
 - 实际改动没有超出批准项。
 
 一旦写入或验证失败，Agent 应停止后续修改，列出成功、失败和未尝试项，并给出文件级修复或反向补丁。回滚也需要在会改动文件时获得批准；不得使用可能抹掉迁移后新工作的大范围 reset 或整体恢复。
 
-只有结构验证通过后，已批准的 release-log 项才能标为完成；随后还要再次运行验证并检查最终 diff。
+所有项目都运行结构验证；ruleset 1 项目还要运行只读健康检查，存在已批准 baseline 时再应用 no-regression 棘轮。只有适用验证通过后，已批准的 release-log 项才能标为完成；随后还要再次运行验证并检查最终 diff。
 
 ## 更新旧版 Project Memory 项目
 
-先更新插件或独立 Skill，再对每个项目分别执行存量迁移流程。版本更新本身不代表项目 schema 必须变化；只有 schema 变化或用户选择的项目改进才需要迁移。
+先更新插件或独立 Skill，再对每个项目分别执行存量迁移流程。版本更新本身不代表项目 schema 或 ruleset 必须变化；只有 schema 变化、ruleset 启用或变更，或用户选择的项目改进才需要迁移。
 
-不要直接复制新版 `.planning/` 覆盖旧目录。旧项目已有的 `CONTEXT.md`、`STATE.md`、`docs/adr/`、变更日志或经验库可能继续作为 canonical 路径，只需由新协议索引和约束。
+不要直接复制新版 `.planning/` 覆盖旧目录。旧项目已有的 `STATE.md`、`docs/adr/`、变更日志、经验库以及详细 `CONTEXT.md` 内容仍可保留为 canonical 并由新协议索引。启用 ruleset 1 后，稳定启动契约和协议设置本身固定保存在必需的 `.planning/context.md`；单独的旧 `CONTEXT.md` 应作为被索引的专题或链接来源保留，不能承担两个核心角色。
+
+## 可选的 ruleset 1
+
+ruleset 1 是叠加在 schema 1 上的可选行为与健康契约。旧的 schema 1 项目继续有效，`NOTICE RULESET_NOT_ENABLED` 只是提示，不构成迁移授权。
+
+启用时必须把以下内容作为一个原子迁移组逐项批准：
+
+1. Context 中的 `Project Memory ruleset: 1` 声明和实际 enforcement level；
+2. 使用 Skill 规定的精确机器 token 建立唯一角色索引；两个核心角色固定指向 `.planning/context.md`，所有被索引的 canonical Markdown 目标都进入适用验证；
+3. 明确处理所有仍把易变状态或日期历史送入稳定 Context 的活跃维护规则；
+4. 所有适用 `AGENTS.md` 与 `CLAUDE.md` 的 marker。
+
+任何成员未获批准或基线漂移时，整个组都不得写入；不得留下混合 ruleset 状态。默认 level 为 `advisory`；baseline、pre-commit Hook、CI workflow 或 required branch check 都是独立的 `MIG-*` 项。验证器与路由器不会保存 baseline、修改正文、授权写入或安装外部门禁。详见 [健康检查与 ruleset 1](../skills/project-memory/references/health.md)。
+
+使用 baseline 时，调用方必须在被检查变更之外独立固定或保护预期 SHA-256。同一项未受保护的变更若同时修改 baseline 和摘要，该摘要不能充当可信锚点。
 
 ## Codex 与 Claude Code
 
@@ -190,5 +208,6 @@ Agent 应运行只读验证器并检查实际 diff，至少确认：
 - 存量迁移有可证明的零写入审计阶段；
 - 每个实际变更都能对应到明确初始化授权或批准的迁移项；
 - 已有内容、canonical 惯例和并发改动被保留；
-- 验证器与项目特定检查通过，或失败被准确报告；
+- 对只读审计，findings 被准确报告，且项目写入数为零；
+- 对实际写入文件的初始化、维护或迁移，结构验证与项目特定检查必须通过；适用时 ruleset 1 健康检查及已批准 baseline 棘轮也必须通过，否则只能报告为部分完成或受阻，不能称为完成；
 - 最终报告列出根目录、改动文件、保留映射、验证证据、恢复方式和最高优先级待决定事项。

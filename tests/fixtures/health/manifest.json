@@ -1,0 +1,29 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    {
+      "directory": "healthy-legacy",
+      "expected": {"RULESET_NOT_ENABLED": "NOTICE"}
+    },
+    {
+      "directory": "healthy-ruleset",
+      "expected": {}
+    },
+    {
+      "directory": "context-drift",
+      "expected": {"CONTEXT_RELEASE_HEADING": "REVIEW"}
+    },
+    {
+      "directory": "release-log-order",
+      "expected": {"RELEASE_LOG_DATE_ORDER": "ERROR"}
+    },
+    {
+      "directory": "heading-regression",
+      "expected": {"NUMERIC_HEADING_REGRESSION": "REVIEW"}
+    },
+    {
+      "directory": "missing-completion-signal",
+      "expected": {"STATE_COMPLETION_SIGNAL_MISSING": "ERROR"}
+    }
+  ]
+}

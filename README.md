@@ -4,15 +4,21 @@
 
 Project Memory is a skills-only plugin for maintaining durable, reviewable project context in Markdown. It gives Codex and Claude Code one shared `.planning/` memory for requirements, decisions, terminology, handoffs, lessons, and project history while keeping current operational facts tied to primary evidence.
 
-Version `0.1.1` adds guarded new-project initialization and zero-write,
-item-approved migration workflows. Version `0.1.0` was the initial public
-preview.
+Version `0.2.0` adds an optional ruleset-1 health contract on top of schema 1.
+It makes canonical write routing and no-regression checks machine-readable
+without silently changing existing projects. Version `0.1.1` added guarded
+new-project initialization and zero-write, item-approved migration workflows.
 
 ## What it does
 
 - Creates or migrates a project memory without replacing existing documentation wholesale.
 - Separates verified facts, user decisions, assumptions, and open questions.
 - Keeps stable context, current handoff state, and chronological history in different documents.
+- Offers an opt-in ruleset that routes proposed memory writes through the
+  project's typed document index and reports health findings as `ERROR`,
+  `REVIEW`, `WARNING`, or `NOTICE`.
+- Compares heuristic health debt with an explicitly reviewed baseline without
+  auto-writing, refreshing, or weakening that baseline.
 - Preserves exact constraints, including negative requirements, ordering guarantees, numerical defaults, and acceptance criteria.
 - Uses focused clarification only when ambiguity materially affects scope, risk, cost, workflow, architecture, or acceptance.
 - Captures reusable experience only after the user reviews each candidate.
@@ -23,7 +29,7 @@ Project Memory treats `.planning/` as the durable authority for human intent. It
 
 ## Safety and privacy
 
-Project Memory has no background service, telemetry, MCP server, lifecycle hook, or automatic updater. It runs only when a host invokes the bundled skill. Any bundled validator also runs only when explicitly invoked.
+Project Memory has no background service, telemetry, MCP server, lifecycle hook, or automatic updater. It runs only when a host invokes the bundled skill. The bundled validator and router also run only when explicitly invoked and are read-only.
 
 The skill may read project files and write `.planning/`, `AGENTS.md`, or `CLAUDE.md`, subject to the host's sandbox and approval policy. It must not silently scan unrelated projects, modify its own source, publish changes, or update an installed copy.
 
@@ -136,6 +142,52 @@ Apply an approved migration:
 Apply MIG-01 and MIG-03 from Project Memory plan PM-MIG-example revision 1 exactly as approved. Do not apply other items or change other files. Re-check the approved baseline first, then report the actual diff and validation evidence.
 ```
 
+### Optional ruleset-1 health contract
+
+Schema and ruleset versions are independent. A schema-1 project with no
+ruleset remains valid and is not upgraded when the Skill is installed or
+updated. Enabling ruleset 1 is an existing-project migration: the context
+declaration, typed role index, conflicting maintenance instructions, and every
+applicable `AGENTS.md` or `CLAUDE.md` marker must be reviewed and approved as
+one atomic group.
+
+For a project that already opted in, run the read-only health check explicitly:
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py \
+  /path/to/project --health
+python3 skills/project-memory/scripts/validate_project_memory.py \
+  /path/to/project --health --format json
+```
+
+Use a baseline only after its exact candidate was separately reviewed and
+approved:
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py \
+  /path/to/project --health \
+  --baseline .planning/<approved-baseline>.json \
+  --baseline-sha256 <approved-sha256> --format json
+```
+
+The expected digest is a trust anchor only when the caller pins or protects it
+independently of the checked change. Updating a baseline and its digest together
+in the same unprotected change does not provide independent enforcement.
+
+Before an authorized memory write, the read-only router can resolve an explicit
+statement kind through the project's typed index:
+
+```bash
+python3 skills/project-memory/scripts/route_project_memory.py \
+  /path/to/project --kind historical-event --format json
+```
+
+Router success identifies one canonical destination; it never authorizes a
+write. A missing or ambiguous route requires human review. The default
+enforcement level is `advisory`; pre-commit hooks, CI workflows, and required
+checks are separate changes that need their own `MIG-*` item and approval. See
+[Health and ruleset 1](skills/project-memory/references/health.md).
+
 Capture reusable experience:
 
 ```text
@@ -171,7 +223,12 @@ Review this project's Project Memory protocol for governed evolution. Present ev
 
 ## Updating an existing project
 
-Updating the installed plugin or skill does not automatically rewrite projects that used an older version. In each project, run a zero-write audit first, review the numbered `MIG-*` proposal, and approve, modify, reject, or defer items individually. Project Memory should preserve existing conventions such as `CONTEXT.md`, `STATE.md`, `docs/adr/`, or an existing experience library instead of creating competing copies.
+Updating the installed plugin or skill does not automatically rewrite projects that used an older version. In each project, run a zero-write audit first, review the numbered `MIG-*` proposal, and approve, modify, reject, or defer items individually. Project Memory should preserve existing conventions such as `CONTEXT.md`, `STATE.md`, `docs/adr/`, or an existing experience library instead of creating competing copies. Under ruleset 1, stable intent and protocol settings stay in `.planning/context.md`; a separate legacy `CONTEXT.md` can remain an indexed topic or linked source.
+
+The same rule applies to ruleset 1: availability is only a `NOTICE`, not
+permission to opt in. Do not leave context and host entries at mixed ruleset
+versions, and do not create or refresh a health baseline as part of an
+unapproved documentation fix.
 
 If you want a protective Git commit or backup before a broad migration, create
 it yourself or authorize it separately. Approval of `MIG-*` items does not
@@ -193,6 +250,13 @@ When the project validator is present, run it against a fixture or project root:
 
 ```bash
 python3 skills/project-memory/scripts/validate_project_memory.py /path/to/project
+```
+
+Ruleset-aware health and routing checks are also read-only:
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py /path/to/project --health --format json
+python3 skills/project-memory/scripts/route_project_memory.py /path/to/project --kind stable-intent --format json
 ```
 
 Build deterministic standalone, Codex plugin, and Claude Code plugin archives:

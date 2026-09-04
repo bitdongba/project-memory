@@ -4,13 +4,18 @@
 
 Project Memory 是一个纯 Skill 插件，用 Markdown 保存可持久、可审阅的项目上下文。它让 Codex 和 Claude Code 共享同一套 `.planning/` 项目记忆，用来管理需求、决定、术语、交接状态、经验和项目历史，同时要求容易变化的运行事实回到一手证据中核验。
 
-`0.1.1` 新增了带门禁的新项目初始化，以及“零写入审计、逐项批准”的存量迁移流程。`0.1.0` 是首个公开预览版本。
+`0.2.0` 在 schema 1 之上新增了可选的 ruleset 1 健康契约，把 canonical
+写入路由和“只防新增恶化”的检查变成可机读约束，同时不会静默修改旧项目。
+`0.1.1` 新增了带门禁的新项目初始化，以及“零写入审计、逐项批准”的存量迁移流程。
 
 ## 它能做什么
 
 - 创建或迁移项目记忆，不整批覆盖已有文档。
 - 区分已验证事实、用户决定、假设和待确认问题。
 - 将稳定上下文、当前交接快照和时间线历史分开保存。
+- 可按项目选择启用 ruleset：通过带角色的文档索引路由待写内容，并以
+  `ERROR`、`REVIEW`、`WARNING`、`NOTICE` 四级报告健康问题。
+- 可将启发式存量债务与经过明确审阅的 baseline 比较，但不会自动写入、刷新或放宽 baseline。
 - 精确保留否定需求、顺序保证、数字默认值和验收标准。
 - 只有当歧义实质影响范围、风险、成本、流程、架构或验收时才集中澄清。
 - 可复用经验必须逐项经过用户审阅后才能进入长期经验库。
@@ -21,7 +26,7 @@ Project Memory 将 `.planning/` 视为“人的意图”的长期权威记录，
 
 ## 安全与隐私
 
-Project Memory 没有后台服务、遥测、MCP Server、生命周期 Hook 或自动更新器。只有宿主调用 Skill 时它才会运行；包内的验证脚本也只会在被明确调用时运行。
+Project Memory 没有后台服务、遥测、MCP Server、生命周期 Hook 或自动更新器。只有宿主调用 Skill 时它才会运行；包内的验证器和路由器也只会在被明确调用时运行，而且均为只读。
 
 Skill 可能在宿主沙箱与审批规则允许的范围内读取项目文件，并写入 `.planning/`、`AGENTS.md` 或 `CLAUDE.md`。它不得静默扫描无关项目、修改自身源码、发布变更或更新已安装副本。
 
@@ -128,6 +133,39 @@ Claude Code 项目级安装可将该目录复制到项目内的 `.claude/skills/
 严格执行 Project Memory 方案 PM-MIG-example revision 1 中已批准的 MIG-01 和 MIG-03；不要执行其他迁移项或修改其他文件。先复查批准所依据的基线，再报告实际 diff 和验证证据。
 ```
 
+### 可选的 ruleset 1 健康契约
+
+schema 与 ruleset 是两个独立版本。没有 ruleset 的 schema 1 项目仍然有效，安装或更新 Skill 不会自动升级它。启用 ruleset 1 属于存量迁移：Context 声明、带类型的角色索引、冲突维护规则，以及所有适用 `AGENTS.md` / `CLAUDE.md` 的 marker，必须作为一个原子组审阅和批准。
+
+项目已经选择启用后，可显式运行只读健康检查：
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py \
+  /path/to/project --health
+python3 skills/project-memory/scripts/validate_project_memory.py \
+  /path/to/project --health --format json
+```
+
+只有在精确 candidate 已被单独审阅、批准后，才能使用 baseline：
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py \
+  /path/to/project --health \
+  --baseline .planning/<approved-baseline>.json \
+  --baseline-sha256 <approved-sha256> --format json
+```
+
+只有当调用方在被检查变更之外独立固定或保护预期摘要时，该摘要才是可信锚点。在同一项未受保护的变更中同时更新 baseline 与摘要，不构成独立门禁。
+
+在已经获得写入授权的前提下，可先用只读路由器把明确的内容类型解析到项目角色索引中的 canonical 目标：
+
+```bash
+python3 skills/project-memory/scripts/route_project_memory.py \
+  /path/to/project --kind historical-event --format json
+```
+
+路由成功只说明目标唯一，并不授权写文件；路由缺失或歧义必须交给人审阅。默认 enforcement level 是 `advisory`；pre-commit Hook、CI workflow 和 required check 都是独立变更，需要各自的 `MIG-*` 项与批准。详见 [健康检查与 ruleset 1](skills/project-memory/references/health.md)。
+
 沉淀可复用经验：
 
 ```text
@@ -163,7 +201,9 @@ V1 只能在当前项目的记忆协议中实施可回滚试用，不能修改�
 
 ## 更新旧项目
 
-更新已安装的插件或 Skill 不会自动改写使用过旧版本的项目。应在每个项目中先运行零写入审计，再对编号 `MIG-*` 迁移项逐项批准、修改、拒绝或延后。Project Memory 应沿用既有的 `CONTEXT.md`、`STATE.md`、`docs/adr/` 或经验库等约定，不创建互相竞争的新副本。
+更新已安装的插件或 Skill 不会自动改写使用过旧版本的项目。应在每个项目中先运行零写入审计，再对编号 `MIG-*` 迁移项逐项批准、修改、拒绝或延后。Project Memory 应沿用既有的 `CONTEXT.md`、`STATE.md`、`docs/adr/` 或经验库等约定，不创建互相竞争的新副本。启用 ruleset 1 时，稳定意图与协议设置固定留在 `.planning/context.md`；单独的旧 `CONTEXT.md` 可继续作为被索引的专题或链接来源。
+
+ruleset 1 也遵循同样边界：发现新版可用只是一条 `NOTICE`，不是启用许可。不得让 Context 与宿主入口处于混合 ruleset 状态，也不得借普通文档修复之机创建或刷新健康 baseline。
 
 如果希望在大范围迁移前建立保护性 Git commit 或备份，请由人提前创建，或另行明确授权。批准 `MIG-*` 项本身不授权 commit，也不授权新建备份路径。
 
@@ -181,6 +221,13 @@ python3 -B -m unittest discover -s tests -p 'test_*.py'
 
 ```bash
 python3 skills/project-memory/scripts/validate_project_memory.py /path/to/project
+```
+
+ruleset 健康检查与路由检查也都是只读：
+
+```bash
+python3 skills/project-memory/scripts/validate_project_memory.py /path/to/project --health --format json
+python3 skills/project-memory/scripts/route_project_memory.py /path/to/project --kind stable-intent --format json
 ```
 
 构建确定性的独立 Skill、Codex 插件和 Claude Code 插件压缩包：

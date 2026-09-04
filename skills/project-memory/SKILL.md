@@ -7,7 +7,7 @@ description: Initialize, audit, adopt or migrate, maintain, hand off, or collabo
 
 Maintain a small, durable Markdown memory for a project. Keep human intent in
 `.planning/`, verify changeable facts against primary evidence, and require the
-user to govern migrations and process evolution.
+user to govern migrations, health-policy adoption, and process evolution.
 
 ## Non-negotiable boundaries
 
@@ -116,8 +116,9 @@ the end of a long session.
 
 For a new long-lived project, create only:
 
-- `.planning/context.md` — stable intent, constraints, high-level state, real
-  document index, protocol schema, and review preference;
+- `.planning/context.md` — the stable boot contract: durable intent,
+  constraints, authority boundaries, the real document index, protocol
+  settings, and review preference;
 - `.planning/release-log.md` — newest-first meaningful history.
 
 Create everything else lazily:
@@ -159,8 +160,12 @@ decisions.
 3. Create only records with real content. Remove unused template headings.
 4. Put stable intent in `context.md`, current resumable state in `state.md`,
    historical events in `release-log.md`, and details in one topic home.
-5. Merge the concise managed entry block last, after referenced files exist.
-6. Run the bundled validator and inspect the final diff.
+5. When the project explicitly declares `Project Memory ruleset: 1`, use the
+   deterministic write preflight and no-regression health protocol in
+   [references/health.md](references/health.md). A missing or ambiguous route is
+   a review condition, never permission to guess a destination.
+6. Merge the concise managed entry block last, after referenced files exist.
+7. Run the bundled validator and inspect the final diff.
 
 For entry block markers and exact host text, read
 [references/entrypoints.md](references/entrypoints.md).
@@ -172,8 +177,10 @@ is mandatory:
 
 1. inventory with zero writes, including no audit artifact, backup, lock, cache,
    directory, marker, formatting pass, or generated file;
-2. map current roles and protocol/schema versions;
-3. report duplicates, conflicts, unsafe paths, and unknowns;
+2. map current roles, protocol/schema versions, optional ruleset declarations,
+   and every existing instruction that assigns maintenance responsibility;
+3. report duplicates, conflicting maintenance instructions, unsafe paths, and
+   unknowns;
 4. show a revisioned file-level plan whose items have stable `MIG-*` IDs,
    baselines, exact expected deltas, preservation rules, dependencies, risks,
    validation, and recovery actions;
@@ -208,9 +215,10 @@ Checkpoint when:
 - the user asks to save, record, persist, or “沉淀一下”.
 
 Keep each fact or decision in one canonical home and link to it elsewhere. Update
-`context.md` only when durable intent, high-level state, protocol settings, or the
-real index changes. Add a release-log entry for meaningful changes, not routine
-noise.
+`context.md` only when durable intent, authority boundaries, protocol settings,
+or the real index changes. Put current focus, milestones, blockers, operational
+snapshots, and other resumable state in `state.md` or their indexed topic home.
+Add a release-log entry for meaningful events, not routine noise.
 
 ## Maintain precise handoff state
 
@@ -295,14 +303,23 @@ After initialization, migration, entry changes, or evolution, run:
 python3 <skill-root>/scripts/validate_project_memory.py <project-root>
 ```
 
-The validator is read-only. Fix reported structural problems only when the
-current request authorizes changes. Then inspect the final diff and verify:
+The validator is read-only. For an opted-in ruleset-1 project, also follow the
+health preflight in [references/health.md](references/health.md), and apply its
+ratchet when an approved baseline and digest exist. Neither validation mode may
+fix content, accept or refresh a baseline, weaken a threshold, add an exemption,
+or install external enforcement. Those actions need separately displayed scope
+and explicit approval. Fix reported structural problems only when the current
+request authorizes changes. Then inspect the final diff and verify:
 
 - all changed paths remain inside the project root and symlinks do not escape;
 - Markdown links, managed markers, indexes, and IDs are valid and unique;
 - required files exist and optional files were created only for real content;
 - facts, decisions, assumptions, and open questions remain distinguishable;
 - active handoff state has an exact next action;
+- ruleset declarations and canonical route rows agree across context and every
+  applicable managed entry;
+- ruleset core roles resolve to `.planning/context.md`, and all indexed
+  canonical Markdown targets received the applicable checks;
 - no stale summary became current fact or permission;
 - no secret, unnecessary personal data, or accidental absolute path was added;
 - concurrent edits and existing user content remain intact.

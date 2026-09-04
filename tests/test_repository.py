@@ -95,9 +95,42 @@ class RepositoryContractTests(unittest.TestCase):
         context = (SKILL / "references" / "core-templates.md").read_text(encoding="utf-8")
         migration = (SKILL / "references" / "migration.md").read_text(encoding="utf-8")
         self.assertIn("<!-- project-memory:start schema=1 -->", entry)
+        self.assertIn("<!-- project-memory:start schema=1 ruleset=1 -->", entry)
         self.assertIn("<!-- project-memory:end -->", entry)
         self.assertIn("Project Memory schema: 1", context)
+        self.assertIn("Project Memory ruleset: 1", context)
         self.assertIn("schema=1", migration)
+        self.assertIn("ruleset=1", migration)
+
+    def test_ruleset_health_assets_and_public_guidance_are_discoverable(self):
+        health = SKILL / "references" / "health.md"
+        router = SKILL / "scripts" / "route_project_memory.py"
+        self.assertTrue(health.is_file())
+        self.assertTrue(router.is_file())
+
+        for name in ("README.md", "README.zh-CN.md"):
+            text = (REPO / name).read_text(encoding="utf-8")
+            self.assertIn("ruleset 1", text)
+            self.assertIn("--health", text)
+            self.assertIn("--format json", text)
+            self.assertIn("--baseline-sha256", text)
+            self.assertIn("route_project_memory.py", text)
+            self.assertIn("advisory", text)
+
+        english_workflow = (REPO / "docs" / "workflows.md").read_text(encoding="utf-8")
+        chinese_workflow = (REPO / "docs" / "workflows.zh-CN.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("high-level state", english_workflow)
+        self.assertNotIn("高层状态", chinese_workflow)
+        self.assertIn("ruleset opt-in", english_workflow)
+        self.assertIn("ruleset 1", chinese_workflow)
+        self.assertIn("partial or blocked", english_workflow)
+        self.assertIn("部分完成或受阻", chinese_workflow)
+        self.assertIn("trust anchor", (REPO / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("可信锚点", (REPO / "README.zh-CN.md").read_text(encoding="utf-8"))
+        self.assertNotIn("exact fact fan-out", health.read_text(encoding="utf-8"))
+        self.assertIn("guard_passed", health.read_text(encoding="utf-8"))
 
     def test_release_inputs_have_no_machine_path_or_junk(self):
         roots = [SKILL, REPO / ".codex-plugin", REPO / ".claude-plugin"]
@@ -194,6 +227,8 @@ class ReleaseBuildTests(unittest.TestCase):
                 self.assertIn("project-memory/LICENSE", names)
                 self.assertIn("project-memory/references/initialization.md", names)
                 self.assertIn("project-memory/references/migration.md", names)
+                self.assertIn("project-memory/references/health.md", names)
+                self.assertIn("project-memory/scripts/route_project_memory.py", names)
                 self.assertNotIn("project-memory/README.md", names)
                 self.assertFalse(any(".codex-plugin" in name or ".claude-plugin" in name for name in names))
             with zipfile.ZipFile(codex) as archive:
@@ -208,6 +243,14 @@ class ReleaseBuildTests(unittest.TestCase):
                     "project-memory/skills/project-memory/references/migration.md",
                     names,
                 )
+                self.assertIn(
+                    "project-memory/skills/project-memory/references/health.md",
+                    names,
+                )
+                self.assertIn(
+                    "project-memory/skills/project-memory/scripts/route_project_memory.py",
+                    names,
+                )
                 self.assertFalse(any(".claude-plugin" in name for name in names))
             with zipfile.ZipFile(claude) as archive:
                 names = set(archive.namelist())
@@ -219,6 +262,14 @@ class ReleaseBuildTests(unittest.TestCase):
                 )
                 self.assertIn(
                     "project-memory/skills/project-memory/references/migration.md",
+                    names,
+                )
+                self.assertIn(
+                    "project-memory/skills/project-memory/references/health.md",
+                    names,
+                )
+                self.assertIn(
+                    "project-memory/skills/project-memory/scripts/route_project_memory.py",
                     names,
                 )
                 self.assertFalse(any(".codex-plugin" in name for name in names))
