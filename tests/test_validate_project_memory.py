@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -9,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 sys.dont_write_bytecode = True
@@ -264,6 +267,137 @@ class ProjectMemoryValidatorTests(unittest.TestCase):
 
             self.assertEqual([], validator.validate_project(project))
 
+    def test_markdown_destinations_preserve_balancing_escapes_and_encoding(self) -> None:
+        destinations = (
+            "api(v2).md",
+            "api((v2)).md",
+            r"api\(v2\).md",
+            r"api\)v2\(.md",
+            "api%28v2%29.md",
+            "api%20v2.md",
+            "<api v2.md>",
+            r"api\_v2.md",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            planning = project / ".planning"
+            for filename in ("api(v2).md", "api((v2)).md", "api)v2(.md", "api v2.md", "api_v2.md"):
+                (planning / filename).write_text("# API\n", encoding="utf-8")
+            links = planning / "links.md"
+            for destination in destinations:
+                for syntax in (
+                    f"[API]({destination})",
+                    f'![API]({destination} "Reference title")',
+                    f"[API]({destination} 'Reference title')",
+                    f"[API]({destination} (Reference title))",
+                    f"[api]: {destination}\nSee [API][api].",
+                ):
+                    with self.subTest(syntax=syntax):
+                        links.write_text("# Links\n\n" + syntax + "\n", encoding="utf-8")
+                        self.assertEqual([], validator.validate_project(project))
+
+    def test_complete_markdown_target_is_reported_for_missing_or_outside_paths(self) -> None:
+        cases = (
+            ("api(v2).md", "BROKEN_LINK"),
+            (r"api\(v2\).md", "BROKEN_LINK"),
+            ("api%28v2%29.md", "BROKEN_LINK"),
+            ("<api v2.md>", "BROKEN_LINK"),
+            ("../../outside(v2).md", "LINK_OUTSIDE_ROOT"),
+            (r"..\/..\/outside\(v2\).md", "LINK_OUTSIDE_ROOT"),
+            ("%2e%2e/%2e%2e/outside%28v2%29.md", "LINK_OUTSIDE_ROOT"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            links = project / ".planning/links.md"
+            for destination, expected in cases:
+                for syntax in (f"[API]({destination})", f"[api]: {destination}"):
+                    with self.subTest(syntax=syntax):
+                        links.write_text("# Links\n\n" + syntax + "\n", encoding="utf-8")
+                        issues = [i for i in validator.validate_project(project) if i.path == ".planning/links.md"]
+                        self.assertEqual([expected], [i.code for i in issues])
+                        self.assertEqual(3, issues[0].line)
+                        if expected == "BROKEN_LINK":
+                            self.assertIn(destination, issues[0].message)
+
+    def test_angle_link_destinations_do_not_hide_prose_placeholders(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            links = project / ".planning/links.md"
+            links.write_text(
+                "[History](<release-log.md>) and <PROJECT_NAME>\n",
+                encoding="utf-8",
+            )
+            issues = [i for i in validator.validate_project(project) if i.path == ".planning/links.md"]
+            self.assertEqual(["PLACEHOLDER_UNRESOLVED"], [i.code for i in issues])
+            self.assertIn("<PROJECT_NAME>", issues[0].message)
+
+    def test_traversal_failure_returns_runtime_json_without_baseline_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            enable_ruleset(project)
+            hidden = project / ".planning/unreadable"
+            hidden.mkdir()
+            (hidden / "broken.md").write_text("[Missing](absent.md)\n", encoding="utf-8")
+            real_scandir = os.scandir
+            hidden_resolved = hidden.resolve()
+
+            def denied_scandir(path):
+                if Path(path) == hidden_resolved:
+                    raise PermissionError(13, "Permission denied", str(path))
+                return real_scandir(path)
+
+            before = tree_fingerprint(project)
+            for options in ([], ["--health"]):
+                with self.subTest(options=options):
+                    output = io.StringIO()
+                    with mock.patch.object(validator.os, "scandir", side_effect=denied_scandir):
+                        with contextlib.redirect_stdout(output):
+                            code = validator.main([str(project), "--format", "json", *options])
+                    self.assertEqual(2, code)
+                    payload = json.loads(output.getvalue())
+                    self.assertFalse(payload["guard_passed"])
+                    self.assertEqual("VALIDATOR_RUNTIME", payload["issues"][0]["code"])
+                    self.assertIn("unreadable", payload["issues"][0]["message"])
+                    self.assertIsNone(payload["baseline_candidate"])
+                    self.assertEqual([], payload["measurements"])
+            self.assertEqual(before, tree_fingerprint(project))
+
+    @unittest.skipIf(os.name == "nt", "POSIX directory permissions required")
+    def test_unreadable_subtree_cannot_turn_broken_project_into_passing_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            enable_ruleset(project)
+            hidden = project / ".planning/unreadable"
+            hidden.mkdir()
+            (hidden / "broken.md").write_text("[Missing](absent.md)\n", encoding="utf-8")
+            self.assertIn("BROKEN_LINK", issue_codes(project))
+            mode = hidden.stat().st_mode
+            try:
+                hidden.chmod(0)
+                try:
+                    with os.scandir(hidden) as entries:
+                        list(entries)
+                except PermissionError:
+                    pass
+                else:
+                    self.skipTest("Current account can read directories despite mode 000")
+                result = subprocess.run(
+                    [sys.executable, str(SCRIPT), str(project), "--health", "--format", "json"],
+                    text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual("VALIDATOR_RUNTIME", payload["issues"][0]["code"])
+                self.assertFalse(payload["valid"])
+                self.assertIsNone(payload["baseline_candidate"])
+            finally:
+                hidden.chmod(mode)
+
     def test_document_index_markdown_link_remains_relative_to_context_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "project"
@@ -303,6 +437,43 @@ class ProjectMemoryValidatorTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
+            self.assertEqual([], validator.validate_project(project))
+
+    def test_completion_signal_alone_is_not_an_exact_next_action(self) -> None:
+        signals = (
+            "Completion signal: output is verified.\n",
+            "- completion signal : output is verified.\n",
+            "* COMPLETION SIGNAL：output is verified.\n",
+            "+ 完成信号 ：结果已核验。\n",
+            "### Completion signal\n\nOutput is verified.\n",
+            "### 完成信号\n\n#### Evidence\n\n结果已核验。\n",
+            "## Completion signal\n\nOutput is verified.\n",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            enable_ruleset(project)
+            state = project / ".planning/state.md"
+            for status in ("active", "paused", "blocked"):
+                for signal in signals:
+                    with self.subTest(status=status, signal=signal):
+                        prefix = f"# State\n\n- Status: {status}\n\n## Exact next step\n\n"
+                        state.write_text(prefix + signal, encoding="utf-8")
+                        self.assertEqual({"STATE_NEXT_STEP_MISSING"}, issue_codes(project))
+                        state.write_text(prefix + "1. Run the verification command.\n\n" + signal, encoding="utf-8")
+                        self.assertEqual([], validator.validate_project(project))
+
+    def test_action_after_completion_subsection_is_still_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURES / "valid_project", project)
+            enable_ruleset(project)
+            (project / ".planning/state.md").write_text(
+                "# State\n\n- Status: paused\n\n## Exact next step\n\n"
+                "### Completion signal\n\nOutput is verified.\n\n"
+                "### Action\n\nRun the verification command.\n",
+                encoding="utf-8",
+            )
             self.assertEqual([], validator.validate_project(project))
 
     def test_ruleset_is_optional_but_context_and_entry_must_match(self) -> None:

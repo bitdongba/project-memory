@@ -4,7 +4,11 @@
 
 Project Memory is a skills-only plugin for maintaining durable, reviewable project context in Markdown. It gives Codex and Claude Code one shared `.planning/` memory for requirements, decisions, terminology, handoffs, lessons, and project history while keeping current operational facts tied to primary evidence.
 
-Version `0.2.0` adds an optional ruleset-1 health contract on top of schema 1.
+Version `0.2.1` hardens validation and release packaging, fixes requested-review
+gating, and gives evolution review state one canonical home. Schema 1 and the
+optional ruleset 1 remain unchanged.
+
+Version `0.2.0` added an optional ruleset-1 health contract on top of schema 1.
 It makes canonical write routing and no-regression checks machine-readable
 without silently changing existing projects. Version `0.1.1` added guarded
 new-project initialization and zero-write, item-approved migration workflows.
@@ -198,9 +202,17 @@ This starts a review. It does not grant blanket approval: each proposed experien
 
 ## Governed evolution
 
-Project Memory does not wake itself on a timer. A periodic review happens only when the skill is invoked and a user requests a review or an agreed review trigger is due.
+Project Memory does not wake itself on a timer. Reviews happen during a skill
+invocation, either at the user's request or when an agreed proactive trigger
+is due.
 
 For a new or migrated long-lived project, it asks once whether reviews should follow milestones, run monthly, remain manual, or stay off. No answer means `manual`. Proactive reviews occur only at a natural checkpoint, require enough meaningful evidence, and respect the configured cadence and cooldown.
+
+An explicit request starts a one-time review immediately, including during a
+cooldown or in `manual` / `off` mode. It preserves the saved mode and still
+requires evidence for candidates and approval for changes. Stable preferences
+belong in `context.md`; review dates, prompt history, evidence boundaries, and
+trial state have one canonical home in `project-retrospective.md`.
 
 Version 1 of this workflow can apply only a reversible trial to the current project's memory protocol. It cannot change the installed skill, another project, this GitHub repository, a marketplace, or a published release.
 

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import stat
 import sys
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -18,6 +19,25 @@ IGNORED_CACHE_PARTS = {"__pycache__"}
 
 def fail(message: str) -> "NoReturn":
     raise SystemExit(message)
+
+
+def validate_input_path(repo: Path, path: Path) -> None:
+    """Reject aliases and escapes below the already-normalized repository root."""
+    try:
+        relative = path.relative_to(repo)
+    except ValueError:
+        fail(f"Release input is outside repository: {path}")
+    current = repo
+    try:
+        for part in relative.parts:
+            current = current / part
+            if stat.S_ISLNK(current.lstat().st_mode):
+                fail(f"Release input must not contain symlinks: {current}")
+        path.resolve(strict=True).relative_to(repo)
+    except ValueError:
+        fail(f"Release input resolves outside repository: {path}")
+    except (OSError, RuntimeError) as exc:
+        fail(f"Cannot inspect release input {path}: {exc}")
 
 
 def load_version(repo: Path) -> str:
@@ -37,6 +57,8 @@ def load_version(repo: Path) -> str:
 
 
 def files_under(root: Path) -> list[Path]:
+    if root.is_symlink():
+        fail(f"Release input must not contain symlinks: {root}")
     if not root.is_dir():
         fail(f"Missing directory: {root}")
     files: list[Path] = []
@@ -105,16 +127,23 @@ def sha256(path: Path) -> str:
 def build(repo: Path, dist: Path) -> list[Path]:
     repo = repo.resolve()
     dist = dist.resolve()
-    version = load_version(repo)
     skill_root = repo / "skills" / "project-memory"
-    skill_files = validate_skill_files(skill_root)
-
     codex_manifest = repo / ".codex-plugin" / "plugin.json"
     claude_manifest = repo / ".claude-plugin" / "plugin.json"
     license_file = repo / "LICENSE"
+
+    # Preflight every input before reading a manifest or writing any artifact.
+    # Normalize only the repository boundary; resolving individual inputs first
+    # would hide symlinks, including aliases that stay inside the repository.
+    for source in (skill_root, codex_manifest, claude_manifest, license_file):
+        validate_input_path(repo, source)
+    skill_files = validate_skill_files(skill_root)
+    for source in skill_files:
+        validate_input_path(repo, source)
     for required in (codex_manifest, claude_manifest, license_file):
         if not required.is_file():
             fail(f"Missing release input: {required}")
+    version = load_version(repo)
 
     artifacts = [
         dist / f"project-memory-skill-v{version}.zip",

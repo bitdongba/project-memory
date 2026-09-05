@@ -81,8 +81,7 @@ schema-1 behavior; never add one without an explicit opt-in decision.
 
 - 模式：manual
 - 依据：默认（未确认）；用户可改为 milestone / monthly / manual / off
-- 上次评审：无
-- 下次允许主动提示：不适用
+- 节奏：主动评审至少有 3 个有意义任务；monthly 为 30 天，milestone 按里程碑或 30 天回退；主动提示间隔至少 14 天，高影响事件按评审规则处理。
 - 说明：Skill 不会后台运行；日期到期后只在下一次符合条件的会话中检查。
 
 ## 已确认的协作偏好
@@ -204,6 +203,10 @@ Record only meaningful events. Keep the newest entry first.
 
 Create this file only at the first meaningful retrospective or when the user
 enables collaborative evolution. It is periodic synthesis, not a task diary.
+When persisting an authorized evolution review, use the review-state section in
+[evolution.md](evolution.md#persist-review-state). Review dates, prompt history,
+evidence boundaries, and trial state belong only here; context keeps the stable
+mode, confirmation basis, and cadence. A read-only review creates no file.
 
 ```md
 # <项目名> 项目回顾

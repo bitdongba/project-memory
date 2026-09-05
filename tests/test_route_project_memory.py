@@ -41,6 +41,7 @@ LEGACY_FIXTURE = (
 
 
 def load_router():
+    sys.path.insert(0, str(SCRIPT.parent))
     spec = importlib.util.spec_from_file_location("route_project_memory", SCRIPT)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot import {SCRIPT}")
@@ -51,6 +52,7 @@ def load_router():
 
 
 router = load_router()
+import validate_project_memory as validator  # noqa: E402
 
 
 def tree_fingerprint(root: Path) -> str:
@@ -140,6 +142,77 @@ class ProjectMemoryRouterTests(unittest.TestCase):
                 ".planning/topics/interface-contract.md",
                 result.primary_path,
             )
+
+    def test_balanced_and_escaped_index_links_validate_and_route_identically(self) -> None:
+        cases = (
+            ("topics/api(v2).md", "api(v2).md"),
+            ("topics/api((v2)).md", "api((v2)).md"),
+            (r"topics/api\(v2\).md", "api(v2).md"),
+            (r"topics/api\)v2\(.md", "api)v2(.md"),
+            ("topics/api%28v2%29.md", "api(v2).md"),
+            ("topics/api%20v2.md", "api v2.md"),
+            ("<topics/api v2.md>", "api v2.md"),
+            (r"topics/api\_v2.md", "api_v2.md"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURE, project)
+            context = project / ".planning/context.md"
+            original = context.read_text(encoding="utf-8")
+            for destination, filename in cases:
+                with self.subTest(destination=destination):
+                    canonical = ".planning/topics/" + filename
+                    target = project / canonical
+                    target.write_text("# API\n", encoding="utf-8")
+                    context.write_text(
+                        original.replace(
+                            "`.planning/topics/interface-contract.md`",
+                            f'[API]({destination} "Current reference")',
+                        ),
+                        encoding="utf-8",
+                    )
+                    self.assertEqual([], validator.validate_project(project))
+                    result = router.route_project_memory(project, "topic-detail", canonical)
+                    self.assertEqual(canonical, result.primary_path)
+                    target.unlink()
+                    self.assertIn(
+                        "RULESET_INDEX_TARGET_MISSING",
+                        {i.code for i in validator.validate_project(project)},
+                    )
+                    with self.assertRaises(router.RouteReviewRequired) as raised:
+                        router.route_project_memory(project, "topic-detail", canonical)
+                    self.assertEqual("CANONICAL_TARGET_MISSING", raised.exception.failure.code)
+
+    def test_decoded_markdown_index_paths_keep_unsafe_path_checks(self) -> None:
+        destinations = (
+            "../../outside(v2).md",
+            r"..\/..\/outside\(v2\).md",
+            "%2e%2e/%2e%2e/outside%28v2%29.md",
+            r"topics\\api.md",
+            "topics%5capi.md",
+            "<../../outside(v2).md>",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            shutil.copytree(FIXTURE, project)
+            context = project / ".planning/context.md"
+            original = context.read_text(encoding="utf-8")
+            for destination in destinations:
+                with self.subTest(destination=destination):
+                    context.write_text(
+                        original.replace(
+                            "`.planning/topics/interface-contract.md`",
+                            f"[API]({destination})",
+                        ),
+                        encoding="utf-8",
+                    )
+                    self.assertIn(
+                        "RULESET_INDEX_PATH_INVALID",
+                        {i.code for i in validator.validate_project(project)},
+                    )
+                    with self.assertRaises(router.RouteInputError) as raised:
+                        router.route_project_memory(project, "stable-intent")
+                    self.assertEqual("INDEX_PATH_UNSAFE", raised.exception.failure.code)
 
     def test_commonmark_indented_index_heading_is_recognized(self) -> None:
         for indentation in (" ", "  ", "   "):

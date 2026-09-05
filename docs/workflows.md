@@ -84,6 +84,12 @@ log—not in the stable context contract.
 
 Create `state.md`, retrospectives, glossary, decision, experience, template, and topic records only after real content needs them. Do not generate empty shells.
 
+Keep the evolution mode and its confirmation basis in context. When a real
+review needs a record, keep review dates, prompt history, evidence boundaries,
+and trial state together in `project-retrospective.md`. A user-requested
+one-time review proceeds even during a proactive cooldown or in `off` mode;
+it does not change the saved preference or authorize file changes.
+
 ### 4. Ask only material questions
 
 If the root, host, existing convention, or scope is materially ambiguous, the agent should provide a recommendation and consequence before asking. A clear, reversible, explicitly requested initialization does not need a second ceremonial approval.
@@ -192,6 +198,12 @@ may remain canonical and be indexed by the new protocol. Under ruleset 1, the
 stable boot contract and protocol settings themselves remain in the required
 `.planning/context.md`; preserve a separate legacy `CONTEXT.md` as an indexed
 topic or linked source instead of assigning it either core role.
+
+Older templates may duplicate review dates in context and retrospective.
+Include reconciliation in a named migration item, preserve attributable history,
+and report conflicting values for resolution. A one-time read-only review can
+proceed with available evidence before that layout migration is approved; it
+must disclose any unresolved timing uncertainty.
 
 ## Optional ruleset 1
 

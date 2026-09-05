@@ -79,15 +79,22 @@ Use these modes:
 - `milestone` — check after a completed milestone. If no milestone completes for 30 days, use the monthly fallback only when at least three meaningful tasks exist in the new evidence window.
 - `monthly` — check at the first natural project checkpoint at least 30 calendar days after the last completed review, only when the evidence window contains at least three meaningful tasks.
 - `manual` — do not initiate a periodic review. Review only when the user explicitly requests it.
-- `off` — do not initiate or suggest evolution review. If the user later explicitly requests one, first confirm that they want to change this preference.
+- `off` — do not initiate or suggest evolution review. An explicit one-time review request still authorizes that review without changing this preference.
 
 Allow the user to change the mode at any time. Record the change as a user decision. Do not infer a mode from activity, silence, or repeated acceptance of unrelated work.
 
 ## Determine review eligibility
 
-Evaluate eligibility at a natural checkpoint, normally after completing the user's requested task. Do not interrupt focused or urgent work merely because a date or milestone became eligible.
+First distinguish a requested review from a proactive check. An explicit review
+request authorizes a one-time read-only review now, regardless of saved mode,
+task count, cadence, or cooldown. It does not enable future prompts, reset the
+proactive-prompt clock, authorize writes, or reopen rejected/snoozed candidates
+without the evidence required below. Do not ask the user to enable a mode before
+doing the requested review.
 
-Require all applicable gates:
+For proactive checks, evaluate eligibility at a natural checkpoint, normally
+after completing the user's requested task. Do not interrupt focused or urgent
+work merely because a date or milestone became eligible. Require all gates:
 
 1. The review mode permits a proactive review.
 2. At least three meaningful tasks exist in the evidence window.
@@ -113,9 +120,10 @@ Treat the following as event evidence:
 
 Ordinary event triggers enter the candidate set and wait for a natural checkpoint. A high-impact incident may bypass the 14-day cooldown, but present it separately and do not label it validated merely because it is urgent.
 
-When no candidate passes the gates, remain silent（保持安静）. Do not ask
-whether the user wants to optimize, and do not write a no-op review record
-merely to prove that a check ran.
+When no candidate passes a proactive check, remain silent（保持安静）. Do not ask
+whether the user wants to optimize. For an explicit review, report the covered
+evidence and any limitations, including when no supported improvement remains.
+Neither path should write a no-op record merely to prove that a check ran.
 
 ## Generate evidence-backed candidates
 
@@ -237,16 +245,28 @@ Only mark a candidate `adopted` after explicit user approval. If the outcome may
 
 ## Persist review state
 
-Keep the stable review preference in the `context.md` collaborative-evolution
-settings. Record `mode`, its confirmation basis, the last completed review, and
-the next allowed proactive prompt there. Treat the unconfirmed manual default
-as a fallback rather than a user decision.
+Keep only stable review settings in `context.md`: mode, confirmation basis, and
+cadence policy. Treat the unconfirmed manual default as a fallback rather than
+a user decision. A review does not itself change these settings.
 
-Reuse `.planning/project-retrospective.md` for evidence boundaries, prompt
-history, and candidate lifecycle instead of creating a second governance
-system. Create this file only after the user enables proactive review, requests
-a review, or a real candidate needs durable state. Do not duplicate the mode as
-a competing source; point back to `context.md`:
+Use the project's canonical retrospective (normally
+`.planning/project-retrospective.md`) as the sole home for completed-review
+dates, proactive-prompt history, evidence boundaries, and candidate/trial state.
+Derive the next eligible proactive date from that history and the stable cadence;
+do not maintain a second countdown in context. Do not duplicate the mode in the
+retrospective; link back to context. Create or update this record only when
+authorized to persist a meaningful review or trial; a read-only review request
+does not authorize an artifact, index update, or other write.
+
+Older projects may have dates in context or in both files. Read and preserve
+those legacy records; do not require migration to perform a read-only review.
+If they disagree, report both sources and use attributable evidence to resolve
+the review boundary, or mark it uncertain and include the potentially uncovered
+evidence. Do not use an unresolved date to trigger a proactive prompt. When an
+authorized migration reconciles the records, show the exact preservation and
+removal deltas under the existing [migration protocol](migration.md), retain
+unique history in the retrospective, and remove only the approved duplicate
+state from context.
 
 ```md
 ## 项目记忆机制评审
@@ -328,38 +348,39 @@ Never use collaborative evolution to:
 Use this order:
 
 ```text
-if user explicitly requests a review:
-    inspect evidence and continue to candidate generation
-else if mode is manual or off:
-    return silently
-else if fewer than 3 meaningful tasks exist in the evidence window:
-    return silently
-else if neither the selected periodic trigger nor an event trigger exists:
-    return silently
-
-if the last proactive prompt was fewer than 14 days ago
-   and no distinct high-impact incident occurred:
-    keep eligible evidence for the next review and return silently
+requested_review = user explicitly requests a review
+if not requested_review:
+    if mode is manual or off:
+        return silently
+    if fewer than 3 meaningful tasks exist in the evidence window:
+        return silently
+    if neither the selected periodic trigger nor an event trigger exists:
+        return silently
+    if the last proactive prompt was fewer than 14 days ago
+       and no distinct high-impact incident occurred:
+        return silently
 
 generate candidates from named evidence
 remove duplicates, premature generalizations, rejected items without new evidence,
 and snoozed items that are not yet due
 
 if no candidate remains:
-    return silently without writing a no-op record
+    if requested_review:
+        report the reviewed evidence and limitations
+    return without writing a no-op record
 
-at the next natural checkpoint:
-    present at most 3 independent candidates
-    make no project change until the user decides each presented candidate
+present at most 3 independent candidates
+make no project change until the user decides each presented candidate
+do not change the saved mode or prompt history merely because a review was requested
 ```
 
 ## Quality checklist
 
 Before presenting candidates, verify:
 
-- the review mode and trigger are eligible;
-- the evidence window contains at least three meaningful tasks unless the user explicitly requested the review;
-- the 14-day cooldown is respected unless a distinct high-impact incident applies;
+- for proactive checks, the mode, trigger, and three-task gate are eligible,
+  and the 14-day cooldown is respected unless a distinct high-impact incident applies;
+- a requested review proceeds without those proactive gates or a saved-mode change;
 - every observation cites named evidence and remains separate from the proposed solution;
 - rejected and snoozed candidates are handled correctly;
 - each candidate is current-project-only and reversible;

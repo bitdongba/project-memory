@@ -8,6 +8,24 @@ The project uses semantic versioning. Skill frontmatter intentionally contains o
 
 - No changes yet.
 
+## 0.2.1 - 2026-09-06
+
+### Fixed
+
+- State validation no longer accepts a completion signal as the required next
+  action.
+- An unreadable planning subtree stops validation as a runtime failure instead
+  of producing a successful audit or a baseline candidate.
+- Markdown link handling supports balanced parentheses and escaped destinations
+  while retaining project-boundary validation.
+- Release input preflight rejects symlinked skill roots, ancestor directories,
+  licenses, and plugin manifests before reading or packaging their content.
+- Explicit evolution-review requests bypass proactive mode, task-count, and
+  cooldown gates without changing the user's saved review preference.
+- Evolution review dates, prompt history, evidence boundaries, and trial state
+  use retrospective as their single canonical home; context keeps stable
+  settings. Existing duplicate records remain subject to reviewed migration.
+
 ## 0.2.0 - 2026-09-04
 
 ### Added

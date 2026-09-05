@@ -1,0 +1,1 @@
+Use `$project-memory` on 2026-08-24. Review this project's memory workflow now, using the available handoff evidence. Give me concrete findings and any useful improvement proposal. This is a read-only review; do not modify files.

@@ -282,8 +282,15 @@ For V1:
 - act only on the current project's protocol;
 - ask once during initialization or migration for `milestone`, `monthly`,
   `manual`, or `off`; if unanswered, use `manual` without blocking;
-- check at a natural task boundary, never during urgent focused execution;
-- remain silent when no evidence-backed candidate qualifies;
+- apply mode, cadence, task-count, and cooldown gates only to proactive checks
+  at natural task boundaries;
+- carry out an explicit one-time review immediately, including in `off` mode
+  or during cooldown, without changing the saved mode or writing files;
+- for proactive checks, remain silent when no evidence-backed candidate
+  qualifies; for a requested review, report the evidence-backed result;
+- keep stable mode, confirmation basis, and cadence in `context.md`; keep
+  review dates, prompt history, evidence boundaries, and trial state only in
+  the canonical retrospective;
 - show at most three independent candidates and ask the user to choose
   `批准试用`, `修改后试用`, `驳回`, or `延后 30 天`;
 - apply only the exact approved project-local diff, then verify and record the

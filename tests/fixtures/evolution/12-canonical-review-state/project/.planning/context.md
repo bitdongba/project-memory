@@ -1,13 +1,14 @@
-# Beacon Context
+# Larch Context
 
 - Project Memory schema: 1
-- 目标：维护内部通知服务。
-- 当前阶段：持续维护。
+- 目标：维护需要跨会话交接的桌面应用。
 
 ## 文档索引
 
 - `.planning/release-log.md`
 - `.planning/project-retrospective.md`
+- `.planning/review-evidence.md`
+- `AGENTS.md`
 
 ## 协作式进化设置
 

@@ -22,6 +22,8 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 from urllib.parse import unquote, urlsplit
 
+from markdown_links import iter_link_destinations, parse_inline_link, unescape_destination
+
 
 SUPPORTED_ENTRY_SCHEMA = 1
 SUPPORTED_RULESET = 1
@@ -87,12 +89,6 @@ RULESET_REQUIRED_SINGLE_ROLES = {
 RULESET_ROLE_HEADERS = {"role", "角色"}
 RULESET_PATH_HEADERS = {"document", "path", "文档", "路径"}
 
-MARKDOWN_LINK_RE = re.compile(
-    r"!?\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^\s)]+)", re.MULTILINE
-)
-REFERENCE_LINK_RE = re.compile(
-    r"^\s{0,3}\[[^\]\n]+\]:\s*(<[^>\n]+>|\S+)", re.MULTILINE
-)
 INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
 HEADING_RE = re.compile(r"^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$")
 STATE_RE = re.compile(
@@ -136,9 +132,6 @@ WORD_PLACEHOLDER_RE = re.compile(
 )
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->")
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
-INDEX_CELL_LINK_RE = re.compile(
-    r"^\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^\s)]+)\s*\)$"
-)
 TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
 KNOWN_HTML_TAGS = {
     "a",
@@ -456,8 +449,14 @@ class ProjectMemoryValidator:
             return []
 
         files: Set[Path] = set()
+
+        def traversal_failed(exc: OSError) -> None:
+            raise exc
+
         try:
-            for dirpath, dirnames, filenames in os.walk(resolved, followlinks=False):
+            for dirpath, dirnames, filenames in os.walk(
+                resolved, followlinks=False, onerror=traversal_failed
+            ):
                 directory = Path(dirpath)
                 for name in list(dirnames) + list(filenames):
                     self._check_symlink(directory / name)
@@ -768,15 +767,11 @@ class ProjectMemoryValidator:
         return blocks
 
     def _extract_markdown_targets(self, text: str) -> Iterable[Tuple[str, int]]:
-        for regex in (MARKDOWN_LINK_RE, REFERENCE_LINK_RE):
-            for match in regex.finditer(text):
-                yield match.group(1), _line_number(text, match.start(1))
+        for raw_target, offset in iter_link_destinations(text):
+            yield raw_target, _line_number(text, offset)
 
     def _normalise_link_target(self, raw: str) -> Optional[str]:
-        target = raw.strip()
-        if target.startswith("<") and target.endswith(">"):
-            target = target[1:-1].strip()
-        target = target.replace(r"\(", "(").replace(r"\)", ")")
+        target = unescape_destination(raw.strip())
         if not target or target.startswith(("#", "//")):
             return None
 
@@ -812,7 +807,14 @@ class ProjectMemoryValidator:
     def _check_placeholders(self, path: Path, text: str, line_offset: int = 0) -> None:
         for local_line, line_text in self._iter_visible_markdown_lines(text):
             line_number = local_line + line_offset
+            angle_destinations = {
+                (offset, offset + len(raw))
+                for raw, offset in iter_link_destinations(line_text)
+                if raw.startswith("<") and raw.endswith(">")
+            }
             for match in ANGLE_PLACEHOLDER_RE.finditer(line_text):
+                if match.span() in angle_destinations:
+                    continue
                 inner = match.group(1).strip()
                 if self._is_non_placeholder_angle(inner):
                     continue
@@ -911,13 +913,11 @@ class ProjectMemoryValidator:
         if inline is not None:
             project_relative = inline.group(1)
         else:
-            link = INDEX_CELL_LINK_RE.fullmatch(value)
-            if link is None:
+            link = parse_inline_link(value)
+            if link is None or link[2] != len(value) or value.startswith("!"):
                 project_relative = value
             else:
-                target = link.group(1)
-                if target.startswith("<") and target.endswith(">"):
-                    target = target[1:-1]
+                target = unescape_destination(link[0])
                 parsed = urlsplit(target.strip())
                 local = unquote(parsed.path)
                 windows = PureWindowsPath(local)
@@ -1474,19 +1474,25 @@ class ProjectMemoryValidator:
         section = self._exact_next_step_section(lines)
         if section is None:
             return False
-        content_start, content_end, level = section
+        content_start, content_end, _ = section
+        signal_level: Optional[int] = None
         for _, line in lines[content_start:content_end]:
             heading = HEADING_RE.match(line)
             if heading:
+                level = len(heading.group(1))
+                if signal_level is not None and level <= signal_level:
+                    signal_level = None
+                if signal_level is None and self._normalise_state_heading(
+                    heading.group(2)
+                ) in {"完成信号", "completion signal"}:
+                    signal_level = level
+                continue
+            if signal_level is not None:
                 continue
             cleaned = re.sub(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)", "", line).strip()
-            if not cleaned or cleaned.startswith("<!--"):
+            if not self._meaningful_value(cleaned):
                 continue
-            if cleaned.lower() in {"无", "none", "n/a", "not applicable", "待补充"}:
-                continue
-            if ANGLE_PLACEHOLDER_RE.search(cleaned) or BRACE_PLACEHOLDER_RE.search(cleaned):
-                continue
-            if cleaned.startswith(("完成信号：", "完成信号:", "completion signal:")):
+            if COMPLETION_SIGNAL_RE.match(cleaned):
                 continue
             return True
         return False

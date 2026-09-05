@@ -24,6 +24,8 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Dict, List, Optional, Sequence, Tuple
 from urllib.parse import unquote, urlsplit
 
+from markdown_links import parse_inline_link, unescape_destination
+
 
 FORMAT_VERSION = 1
 SUPPORTED_RULESET = "1"
@@ -54,7 +56,6 @@ RULESET_RE = re.compile(
     re.IGNORECASE,
 )
 INLINE_CODE_RE = re.compile(r"^`([^`\n]+)`$")
-MARKDOWN_LINK_RE = re.compile(r"^\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^\s)]+)\s*\)$")
 TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 
@@ -435,13 +436,9 @@ def _cell_path(cell: str) -> Tuple[str, bool]:
     inline = INLINE_CODE_RE.match(cell)
     if inline is not None:
         return inline.group(1), False
-    link = MARKDOWN_LINK_RE.match(cell)
-    if link is not None:
-        value = link.group(1)
-        return (
-            value[1:-1] if value.startswith("<") and value.endswith(">") else value,
-            True,
-        )
+    link = parse_inline_link(cell)
+    if link is not None and link[2] == len(cell) and not cell.startswith("!"):
+        return unescape_destination(link[0]), True
     return cell, False
 
 

@@ -4,10 +4,14 @@ import hashlib
 import importlib.util
 import json
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 from urllib.parse import unquote, urlsplit
 
 
@@ -209,6 +213,130 @@ class RepositoryContractTests(unittest.TestCase):
 
 
 class ReleaseBuildTests(unittest.TestCase):
+    def test_packaged_clis_run_outside_repository(self):
+        build_release = load_build_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            project = root / "project"
+            shutil.copytree(REPO / "tests/fixtures/health/healthy-ruleset", project)
+            for artifact in build_release.build(REPO, root / "dist"):
+                if artifact.suffix != ".zip":
+                    continue
+                with self.subTest(archive=artifact.name):
+                    extracted = root / artifact.stem
+                    with zipfile.ZipFile(artifact) as archive:
+                        self.assertIsNone(archive.testzip())
+                        archive.extractall(extracted)
+                    packaged_skill = extracted / "project-memory"
+                    if (packaged_skill / "skills").exists():
+                        packaged_skill /= "skills/project-memory"
+                    scripts = packaged_skill / "scripts"
+                    self.assertTrue((scripts / "markdown_links.py").is_file())
+                    commands = (
+                        ("validate_project_memory.py", ["--health", "--format", "json"]),
+                        ("route_project_memory.py", ["--kind", "stable-intent", "--format", "json"]),
+                    )
+                    for script, options in commands:
+                        result = subprocess.run(
+                            [sys.executable, "-E", "-B", str(scripts / script), str(project), *options],
+                            cwd=root, text=True, capture_output=True, check=False,
+                        )
+                        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                        payload = json.loads(result.stdout)
+                        if script.startswith("validate"):
+                            self.assertTrue(payload["guard_passed"])
+                            self.assertEqual([], payload["issues"])
+                        else:
+                            self.assertEqual(".planning/context.md", payload["primary_path"])
+
+    def make_release_repo(self, root: Path) -> Path:
+        repo = root / "repo"
+        inputs = {
+            "LICENSE": "Synthetic license\n",
+            ".codex-plugin/plugin.json": '{"version": "0.2.0"}\n',
+            ".claude-plugin/plugin.json": '{"version": "0.2.0"}\n',
+            "skills/project-memory/SKILL.md": "# Synthetic skill\n",
+            "skills/project-memory/agents/openai.yaml": "interface: {}\n",
+            "skills/project-memory/references/guide.md": "# Synthetic guide\n",
+        }
+        for relative, content in inputs.items():
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        return repo
+
+    def assert_symlink_rejected_before_read_or_write(self, repo: Path, dist: Path):
+        build_release = load_build_module()
+        with mock.patch.object(build_release, "load_version") as load_version:
+            with self.assertRaisesRegex(SystemExit, "must not contain symlinks"):
+                build_release.build(repo, dist)
+            load_version.assert_not_called()
+        self.assertFalse(dist.exists())
+
+    def test_rejects_symlinked_selected_files_before_any_output(self):
+        for relative in (
+            "LICENSE",
+            ".codex-plugin/plugin.json",
+            ".claude-plugin/plugin.json",
+            "skills/project-memory/references/guide.md",
+        ):
+            with self.subTest(input=relative), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp).resolve()
+                repo = self.make_release_repo(root)
+                source = repo / relative
+                outside = root / "external-input"
+                source.rename(outside)
+                source.symlink_to(outside)
+                self.assert_symlink_rejected_before_read_or_write(repo, root / "dist")
+
+    def test_rejects_symlinked_skill_root_and_input_ancestors(self):
+        for relative in (
+            "skills/project-memory",
+            "skills",
+            ".codex-plugin",
+            ".claude-plugin",
+            "skills/project-memory/references",
+        ):
+            for internal_target in (False, True):
+                with self.subTest(input=relative, internal=internal_target):
+                    with tempfile.TemporaryDirectory() as temp:
+                        root = Path(temp).resolve()
+                        repo = self.make_release_repo(root)
+                        source = repo / relative
+                        target = (repo if internal_target else root) / "moved-input"
+                        source.rename(target)
+                        source.symlink_to(target, target_is_directory=True)
+                        self.assert_symlink_rejected_before_read_or_write(
+                            repo, root / "dist"
+                        )
+
+    def test_rejects_input_paths_outside_repository(self):
+        build_release = load_build_module()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            repo = self.make_release_repo(root)
+            outside = root / "external-input"
+            outside.write_text("Synthetic external content\n", encoding="utf-8")
+            for path in (outside, repo / ".." / outside.name):
+                with self.subTest(path=path):
+                    with self.assertRaisesRegex(SystemExit, "outside repository"):
+                        build_release.validate_input_path(repo, path)
+
+    def test_normalizes_repository_parent_alias_before_input_checks(self):
+        build_release = load_build_module()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            repo = self.make_release_repo(root / "real-parent")
+            alias = root / "parent-alias"
+            alias.symlink_to(repo.parent, target_is_directory=True)
+            artifacts = build_release.build(alias / repo.name, root / "dist")
+            self.assertEqual(len(artifacts), 4)
+            self.assertTrue(all(path.is_file() for path in artifacts))
+            with zipfile.ZipFile(artifacts[0]) as archive:
+                self.assertEqual(
+                    archive.read("project-memory/LICENSE"), b"Synthetic license\n"
+                )
+
     def test_builds_deterministic_allowlisted_archives(self):
         build_release = load_build_module()
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:

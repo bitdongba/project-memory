@@ -55,7 +55,27 @@
       "id": "approved-trial",
       "directory": "09-approved-trial",
       "mutation": "project-local-only",
+      "allowedFiles": ["AGENTS.md", ".planning/project-retrospective.md", ".planning/release-log.md"],
       "purpose": "Apply an exact approved trial, record it, and leave installed or upstream Skill sources untouched."
+    },
+    {
+      "id": "requested-cooldown",
+      "directory": "10-requested-cooldown",
+      "mutation": "forbidden",
+      "purpose": "Complete an explicit read-only review during cooldown without changing mode, dates, or legacy duplicate records."
+    },
+    {
+      "id": "requested-off",
+      "directory": "11-requested-off",
+      "mutation": "forbidden",
+      "purpose": "Review two named incidents on explicit request while preserving off mode and requiring no new setting."
+    },
+    {
+      "id": "canonical-review-state",
+      "directory": "12-canonical-review-state",
+      "mutation": "project-local-only",
+      "allowedFiles": [".planning/project-retrospective.md", ".planning/release-log.md"],
+      "purpose": "Record an authorized completed review and adoption only in canonical retrospective/history; preserve stable context and proactive prompt date."
     }
   ]
 }
